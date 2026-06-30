@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Pac-man AI Search — Trực quan hóa thuật toán tìm kiếm</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <header class="topbar">
+    <h1>Pac-man AI · Trực quan hóa thuật toán tìm kiếm</h1>
+    <span class="subtitle">Tìm kiếm mù · Tìm kiếm có thông tin · Tìm kiếm đối kháng</span>
+  </header>
+
+  <main class="layout">
+    <!-- Bảng điều khiển -->
+    <section class="panel controls">
+      <h2>Điều khiển</h2>
+
+      <label>Bản đồ
+        <select id="mapSelect"></select>
+      </label>
+
+      <label>Chế độ
+        <select id="modeSelect">
+          <option value="static">Tĩnh (tìm đường / ăn hết food)</option>
+          <option value="adversarial">Đối kháng (có ma)</option>
+        </select>
+      </label>
+
+      <!-- Khối tĩnh -->
+      <div id="staticControls">
+        <label>Bài toán
+          <select id="problemSelect">
+            <option value="eat_all">Ăn hết food</option>
+            <option value="path_to_nearest">Đi tới food gần nhất</option>
+          </select>
+        </label>
+        <label>Thuật toán
+          <select id="algoSelect"></select>
+        </label>
+        <label id="heuristicRow">Heuristic
+          <select id="heuristicSelect"></select>
+        </label>
+      </div>
+
+      <!-- Khối đối kháng -->
+      <div id="adversarialControls" class="hidden">
+        <label>Thuật toán
+          <select id="advAlgoSelect">
+            <option value="alphabeta">Alpha-Beta</option>
+            <option value="minimax">Minimax</option>
+            <option value="expectimax">Expectimax</option>
+          </select>
+        </label>
+        <label>Độ sâu (depth)
+          <input type="range" id="depthRange" min="1" max="6" value="3" />
+          <span id="depthValue">3</span>
+        </label>
+      </div>
+
+      <label>Tốc độ animation
+        <input type="range" id="speedRange" min="1" max="60" value="12" />
+        <span id="speedValue">12</span> bước/giây
+      </label>
+
+      <div class="buttons">
+        <button id="runBtn" class="primary">Chạy</button>
+        <button id="pauseBtn">Tạm dừng</button>
+        <button id="stepBtn">Từng bước</button>
+        <button id="resetBtn">Đặt lại</button>
+      </div>
+
+      <button id="compareBtn" class="secondary">So sánh tất cả thuật toán</button>
+    </section>
+
+    <!-- Sân khấu game -->
+    <section class="stage">
+      <canvas id="board" width="640" height="480"></canvas>
+      <div class="legend">
+        <span><i class="sw pac"></i> Pac-man</span>
+        <span><i class="sw food"></i> Food</span>
+        <span><i class="sw pellet"></i> Power pellet</span>
+        <span><i class="sw ghost"></i> Ma</span>
+        <span><i class="sw visited"></i> Ô đã duyệt (expand)</span>
+        <span><i class="sw path"></i> Đường đi</span>
+      </div>
+    </section>
+
+    <!-- Thống kê -->
+    <section class="panel stats">
+      <h2>Thống kê</h2>
+      <table id="statsTable">
+        <tr><td>Trạng thái</td><td id="stStatus">—</td></tr>
+        <tr><td>Node expand</td><td id="stExpanded">—</td></tr>
+        <tr><td>Node sinh ra</td><td id="stGenerated">—</td></tr>
+        <tr><td>Frontier lớn nhất</td><td id="stFrontier">—</td></tr>
+        <tr><td>Thời gian (ms)</td><td id="stTime">—</td></tr>
+        <tr><td>Độ dài đường đi</td><td id="stPath">—</td></tr>
+        <tr><td>Chi phí (cost)</td><td id="stCost">—</td></tr>
+        <tr><td>Điểm số</td><td id="stScore">—</td></tr>
+      </table>
+
+      <h2>Bảng so sánh</h2>
+      <div class="compare-wrap">
+        <table id="compareTable">
+          <thead>
+            <tr><th>Thuật toán</th><th>Expand</th><th>Time(ms)</th><th>Path</th><th>Cost</th></tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </section>
+  </main>
+
+  <footer class="foot">
+    Backend: <code>http://localhost:8000</code> · Đổi trong <code>api.js</code> nếu cần.
+  </footer>
+
+  <script src="src/api.js"></script>
+  <script src="src/render.js"></script>
+  <script src="src/controls.js"></script>
+  <script src="src/game.js"></script>
+</body>
+</html>

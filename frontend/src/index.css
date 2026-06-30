@@ -1,0 +1,250 @@
+@import "tailwindcss";
+
+/* ============================================================
+   PAC-MAN A.I. SEARCH — CRT Arcade theme
+   Palette lấy từ Pac-man arcade gốc (KHÔNG synthwave tím-hồng).
+   ============================================================ */
+@theme {
+  --color-void: #0a0a12;
+  --color-maze: #2121de;
+  --color-pac: #ffe600;
+  --color-blinky: #ff0000;
+  --color-pinky: #ffb8ff;
+  --color-inky: #00ffff;
+  --color-clyde: #ffb852;
+  --color-pellet: #ffb897;
+  --color-amber: #ffb000;
+  --color-amber-dim: #7a5500;
+  --color-scared: #2121de;
+
+  --font-arcade: "Press Start 2P", monospace;
+  --font-term: "VT323", monospace;
+}
+
+* { box-sizing: border-box; }
+
+html, body, #root {
+  margin: 0;
+  min-height: 100svh;
+  background: #050509;
+}
+
+body {
+  font-family: var(--font-term);
+  color: var(--color-amber);
+  /* ánh sáng nền hắt từ giữa màn hình */
+  background:
+    radial-gradient(ellipse at 50% 35%, #15152a 0%, #07070f 55%, #050509 100%);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ----- Tiện ích chữ ----- */
+.font-arcade { font-family: var(--font-arcade); }
+.font-term { font-family: var(--font-term); }
+
+.text-glow {
+  text-shadow: 0 0 4px currentColor, 0 0 12px currentColor;
+}
+.text-glow-soft {
+  text-shadow: 0 0 6px currentColor;
+}
+
+/* ============================================================
+   MÀN HÌNH CRT
+   ============================================================ */
+.crt {
+  position: relative;
+  border-radius: 22px / 30px;            /* cong kiểu ống CRT */
+  background: #000;
+  box-shadow:
+    inset 0 0 60px 10px rgba(0, 0, 0, 0.9),
+    inset 0 0 18px 2px rgba(33, 33, 222, 0.25),
+    0 0 0 3px #15161f,
+    0 0 0 12px #0c0c12,
+    0 0 40px 4px rgba(33, 33, 222, 0.18),
+    0 18px 50px rgba(0, 0, 0, 0.8);
+  overflow: hidden;
+}
+
+/* lớp cong + tối góc (vignette) */
+.crt::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  background: radial-gradient(
+    ellipse at center,
+    transparent 60%,
+    rgba(0, 0, 0, 0.55) 100%
+  );
+  z-index: 3;
+}
+
+/* scanline tĩnh + 1 vạch quét chạy */
+.crt::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  z-index: 4;
+  background:
+    repeating-linear-gradient(
+      to bottom,
+      rgba(0, 0, 0, 0) 0px,
+      rgba(0, 0, 0, 0) 2px,
+      rgba(0, 0, 0, 0.18) 3px,
+      rgba(0, 0, 0, 0.18) 4px
+    );
+}
+
+.crt-sweep {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 120px;
+  z-index: 5;
+  pointer-events: none;
+  background: linear-gradient(
+    to bottom,
+    transparent,
+    rgba(120, 200, 255, 0.06) 50%,
+    transparent
+  );
+  animation: crt-scan 7s linear infinite;
+}
+@keyframes crt-scan {
+  0% { top: -120px; }
+  100% { top: 100%; }
+}
+
+.crt canvas {
+  display: block;
+  position: relative;
+  z-index: 2;
+  image-rendering: pixelated;
+  width: 100%;
+  height: auto;
+}
+
+/* hiệu ứng bật nguồn: chớp + giãn từ vạch ngang */
+.crt-poweron { animation: poweron 0.65s ease-out; }
+@keyframes poweron {
+  0%   { transform: scaleY(0.005) scaleX(1); filter: brightness(6); opacity: 0; }
+  35%  { transform: scaleY(0.02) scaleX(1); filter: brightness(5); opacity: 1; }
+  60%  { transform: scaleY(1) scaleX(1.02); filter: brightness(2.5); }
+  100% { transform: scaleY(1) scaleX(1); filter: brightness(1); }
+}
+
+/* rung màn khi thua */
+.shake { animation: shake 0.5s cubic-bezier(.36,.07,.19,.97) both; }
+@keyframes shake {
+  10%, 90% { transform: translateX(-2px); }
+  20%, 80% { transform: translateX(4px); }
+  30%, 50%, 70% { transform: translateX(-7px); }
+  40%, 60% { transform: translateX(7px); }
+}
+
+/* ============================================================
+   MARQUEE (biển hiệu phát sáng)
+   ============================================================ */
+.marquee-title {
+  font-family: var(--font-arcade);
+  color: var(--color-pac);
+  text-shadow:
+    0 0 6px var(--color-pac),
+    0 0 18px rgba(255, 230, 0, 0.7),
+    0 0 34px rgba(255, 176, 0, 0.5);
+  letter-spacing: 2px;
+}
+
+/* ============================================================
+   NÚT BẤM ARCADE
+   ============================================================ */
+.arcade-btn {
+  font-family: var(--font-arcade);
+  font-size: 10px;
+  letter-spacing: 1px;
+  padding: 12px 10px;
+  border-radius: 8px;
+  border: 2px solid rgba(255, 255, 255, 0.12);
+  color: #0a0a12;
+  cursor: pointer;
+  transition: transform .06s ease, box-shadow .15s ease, filter .15s ease;
+  text-transform: uppercase;
+}
+.arcade-btn:active { transform: translateY(2px); }
+.arcade-btn:disabled { filter: grayscale(0.7) brightness(0.6); cursor: not-allowed; }
+
+.btn-run   { background: var(--color-pac);    box-shadow: 0 4px 0 #9c8c00, 0 0 14px rgba(255,230,0,.5); }
+.btn-pause { background: var(--color-clyde);  box-shadow: 0 4px 0 #9c6e20, 0 0 14px rgba(255,184,82,.4); }
+.btn-step  { background: var(--color-inky);   box-shadow: 0 4px 0 #0a9c9c, 0 0 14px rgba(0,255,255,.4); }
+.btn-reset { background: var(--color-pinky);  box-shadow: 0 4px 0 #9c5e9c, 0 0 14px rgba(255,184,255,.4); }
+.btn-compare {
+  background: var(--color-maze);
+  color: #dfe3ff;
+  border-color: rgba(120,140,255,.5);
+  box-shadow: 0 4px 0 #14148c, 0 0 14px rgba(33,33,222,.6);
+}
+.arcade-btn:not(:disabled):hover { filter: brightness(1.12); }
+
+/* ============================================================
+   SELECT / panel
+   ============================================================ */
+.crt-panel {
+  background: linear-gradient(180deg, rgba(20,20,34,.92), rgba(10,10,18,.92));
+  border: 2px solid rgba(33, 33, 222, 0.45);
+  border-radius: 12px;
+  box-shadow: inset 0 0 20px rgba(33,33,222,.15), 0 0 0 1px rgba(0,0,0,.6);
+}
+
+.crt-label {
+  font-family: var(--font-arcade);
+  font-size: 9px;
+  letter-spacing: 1px;
+  color: var(--color-inky);
+  text-transform: uppercase;
+}
+
+.crt-select {
+  width: 100%;
+  font-family: var(--font-term);
+  font-size: 20px;
+  line-height: 1;
+  color: var(--color-amber);
+  background: #07070f;
+  border: 1px solid rgba(255, 176, 0, 0.35);
+  border-radius: 6px;
+  padding: 6px 8px;
+  outline: none;
+}
+.crt-select:focus { border-color: var(--color-amber); box-shadow: 0 0 8px rgba(255,176,0,.5); }
+.crt-select option { background: #07070f; color: var(--color-amber); }
+
+/* thanh trượt */
+.crt-range { width: 100%; accent-color: var(--color-amber); }
+
+/* ============================================================
+   BẢNG SỐ LIỆU (phosphor amber)
+   ============================================================ */
+.stat-grid { font-family: var(--font-term); }
+.stat-value {
+  color: var(--color-amber);
+  text-shadow: 0 0 6px rgba(255, 176, 0, 0.6);
+  font-variant-numeric: tabular-nums;
+}
+.stat-key { color: var(--color-amber-dim); }
+
+table.compare { width: 100%; border-collapse: collapse; font-family: var(--font-term); font-size: 18px; }
+table.compare th, table.compare td { padding: 5px 8px; border-bottom: 1px solid rgba(255,176,0,.18); text-align: right; }
+table.compare th:first-child, table.compare td:first-child { text-align: left; }
+table.compare thead th { color: var(--color-inky); position: sticky; top: 0; background: #0a0a14; }
+table.compare td.best { color: var(--color-pac); text-shadow: 0 0 6px rgba(255,230,0,.6); }
+
+/* ============================================================
+   Tôn trọng giảm chuyển động
+   ============================================================ */
+@media (prefers-reduced-motion: reduce) {
+  .crt-sweep, .crt-poweron, .shake { animation: none !important; }
+}

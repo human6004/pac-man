@@ -1,0 +1,40 @@
+{
+  "schema_version": 1,
+  "diagram_type": "lifecycle",
+  "meta": {
+    "title": "Pac-man Game State Lifecycle",
+    "subtitle": "State machine from map load to win/lose/timeout — search + adversarial modes",
+    "output": "lifecycle.html",
+    "viewBox": [980, 660]
+  },
+  "lanes": [
+    { "id": "main", "label": "Game phases" },
+    { "id": "search", "label": "Search engine" },
+    { "id": "adversarial", "label": "Adversarial loop" },
+    { "id": "terminal", "label": "Terminal exits" }
+  ],
+  "states": [
+    { "id": "idle", "type": "start", "label": "Idle", "sublabel": "map loaded", "lane": "main", "col": 0, "step": "01", "tag": "init" },
+    { "id": "config", "type": "active", "label": "Configure", "sublabel": "algo/map/mode", "lane": "main", "col": 1, "step": "02", "tag": "UI" },
+    { "id": "solving", "type": "active", "label": "Solving", "sublabel": "search running", "lane": "main", "col": 2, "step": "03", "tag": "compute" },
+    { "id": "animating", "type": "active", "label": "Animating", "sublabel": "path playback", "lane": "main", "col": 3, "step": "04", "tag": "render" },
+    { "id": "done", "type": "success", "label": "Complete", "sublabel": "result shown", "lane": "main", "col": 4, "step": "05", "tag": "done" },
+    { "id": "expanding", "type": "waiting", "label": "Expanding", "sublabel": "BFS/A* loop", "lane": "search", "col": 0, "yOffset": -20, "tag": "tree walk" },
+    { "id": "nofound", "type": "failure", "label": "No Solution", "sublabel": "goal unreachable", "lane": "search", "col": 2, "yOffset": -20, "tag": "fail" },
+    { "id": "simulating", "type": "waiting", "label": "Simulating", "sublabel": "step-by-step", "lane": "adversarial", "col": 1, "yOffset": 40, "tag": "frames" },
+    { "id": "win", "type": "success", "label": "WIN", "sublabel": "all food eaten", "lane": "terminal", "col": 0, "tag": "terminal" },
+    { "id": "lose", "type": "failure", "label": "LOSE", "sublabel": "ghost caught", "lane": "terminal", "col": 1, "tag": "terminal" }
+  ],
+  "transitions": [
+    { "from": "solving", "to": "expanding", "variant": "default", "fromSide": "bottom", "toSide": "top", "route": "straight" },
+    { "from": "expanding", "to": "nofound", "variant": "security" },
+    { "from": "solving", "to": "simulating", "variant": "dashed", "fromSide": "left", "toSide": "top", "via": [[340, 372], [402, 372]] },
+    { "from": "simulating", "to": "win", "variant": "emphasis", "fromSide": "bottom", "toSide": "top", "route": "straight" },
+    { "from": "simulating", "to": "lose", "variant": "security", "fromSide": "bottom", "toSide": "top", "via": [[430, 480], [556, 480]] }
+  ],
+  "cards": [
+    { "dot": "emerald", "title": "Main Path", "items": ["Idle → Configure → Solving → Animating → Complete", "Static mode: one search run, then animate path", "Compare mode: 6 algorithms in parallel, show table"] },
+    { "dot": "amber", "title": "Search Engine", "items": ["Expanding: BFS/DFS/UCS/IDS/Greedy/A* expand loop", "No Solution: frontier empty, goal unreachable", "Metrics collected during entire expand phase"] },
+    { "dot": "rose", "title": "Adversarial + Terminal", "items": ["Simulating: Minimax/AB/Expectimax frame-by-frame", "WIN: Status.WIN when all food eaten", "LOSE: Status.LOSE when ghost catches Pac-man"] }
+  ]
+}

@@ -1,0 +1,43 @@
+{
+  "schema_version": 1,
+  "diagram_type": "workflow",
+  "meta": {
+    "title": "Pac-man AI Request Workflow",
+    "subtitle": "Static solve + adversarial simulate + compare",
+    "output": "workflow.html"
+  },
+  "lanes": [
+    { "id": "user", "label": "User (Browser)" },
+    { "id": "fe", "label": "React Frontend" },
+    { "id": "api", "label": "FastAPI Backend" },
+    { "id": "engine", "label": "Game + Search Engine" }
+  ],
+  "nodes": [
+    { "id": "pick", "lane": "user", "col": 0, "type": "frontend", "label": "Choose config", "sublabel": "map/algo/mode" },
+    { "id": "run", "lane": "user", "col": 2, "type": "frontend", "label": "Click Run", "sublabel": "or Step/Compare" },
+    { "id": "call", "lane": "fe", "col": 2, "type": "frontend", "label": "API Call", "sublabel": "POST /solve", "tag": "fetch" },
+    { "id": "validate", "lane": "api", "col": 2, "type": "backend", "label": "Validate", "sublabel": "map + algo check" },
+    { "id": "guard", "lane": "api", "col": 3, "type": "security", "label": "Size Guard", "sublabel": "food > 25?", "width": 80 },
+    { "id": "load", "lane": "engine", "col": 2, "type": "cloud", "label": "Load Layout", "sublabel": "maps/*.txt" },
+    { "id": "solve", "lane": "engine", "col": 4, "type": "backend", "label": "Run Algo", "sublabel": "BFS/A*/Minimax", "tag": "core" },
+    { "id": "metrics", "lane": "engine", "col": 5, "type": "messagebus", "label": "Metrics", "sublabel": "expand/time/cost" },
+    { "id": "respond", "lane": "api", "col": 5, "type": "backend", "label": "Response", "sublabel": "path + stats" },
+    { "id": "animate", "lane": "fe", "col": 5, "type": "frontend", "label": "Animate", "sublabel": "search + path", "tag": "canvas" }
+  ],
+  "edges": [
+    { "from": "pick", "to": "run", "variant": "emphasis" },
+    { "from": "run", "to": "call", "variant": "emphasis", "fromSide": "bottom", "toSide": "top", "route": "drop" },
+    { "from": "call", "to": "validate", "variant": "emphasis", "fromSide": "bottom", "toSide": "top", "route": "drop" },
+    { "from": "validate", "to": "guard" },
+    { "from": "guard", "to": "load", "label": "pass", "fromSide": "bottom", "toSide": "top", "route": "drop" },
+    { "from": "load", "to": "solve", "variant": "emphasis" },
+    { "from": "solve", "to": "metrics" },
+    { "from": "metrics", "to": "respond", "label": "result", "fromSide": "top", "toSide": "bottom", "route": "drop" },
+    { "from": "respond", "to": "animate", "fromSide": "top", "toSide": "bottom", "route": "drop" }
+  ],
+  "cards": [
+    { "dot": "cyan", "title": "Static mode", "items": ["/solve runs one algo, /compare runs all 6", "visited_order animates expand, path animates walk"] },
+    { "dot": "emerald", "title": "Adversarial mode", "items": ["/adversarial simulates full game with ghosts", "Returns frame list for step-by-step replay"] },
+    { "dot": "rose", "title": "Guards", "items": ["food > 25 blocks eat_all on large maps", "IDS blocked for eat_all (exponential expand)"] }
+  ]
+}

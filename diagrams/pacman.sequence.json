@@ -1,0 +1,47 @@
+{
+  "schema_version": 1,
+  "diagram_type": "sequence",
+  "meta": {
+    "title": "Pac-man /solve API Sequence",
+    "subtitle": "Static search: request → validate → search → animate",
+    "viewBox": [920, 820],
+    "output": "sequence.html"
+  },
+  "participants": [
+    { "id": "user", "type": "external", "label": "Browser", "sublabel": "User" },
+    { "id": "react", "type": "frontend", "label": "React App", "sublabel": "useRunner" },
+    { "id": "api", "type": "backend", "label": "FastAPI", "sublabel": "/solve" },
+    { "id": "layout", "type": "cloud", "label": "Layout", "sublabel": "maps/*.txt" },
+    { "id": "problem", "type": "backend", "label": "Problem", "sublabel": "SearchProblem" },
+    { "id": "algo", "type": "backend", "label": "Algorithm", "sublabel": "BFS/A*/..." },
+    { "id": "canvas", "type": "frontend", "label": "Canvas", "sublabel": "Renderer" }
+  ],
+  "segments": [
+    { "from": 170, "to": 340, "label": "01 / BACKEND" },
+    { "from": 360, "to": 530, "label": "02 / SEARCH" },
+    { "from": 550, "to": 700, "label": "03 / RENDER" }
+  ],
+  "messages": [
+    { "from": "user", "to": "react", "y": 190, "label": "click Run", "variant": "emphasis" },
+    { "from": "react", "to": "api", "y": 230, "label": "POST /solve {map,algo,h}", "variant": "emphasis" },
+    { "from": "api", "to": "layout", "y": 270, "label": "load_layout(name)" },
+    { "from": "layout", "to": "api", "y": 310, "label": "GameState", "variant": "return" },
+    { "from": "api", "to": "problem", "y": 380, "label": "build_problem(state)", "variant": "emphasis" },
+    { "from": "problem", "to": "api", "y": 420, "label": "SearchProblem", "variant": "return" },
+    { "from": "api", "to": "algo", "y": 460, "label": "fn(problem, h)", "variant": "emphasis" },
+    { "from": "algo", "to": "api", "y": 510, "label": "SearchResult", "variant": "return", "note": "path + visited + metrics" },
+    { "from": "api", "to": "react", "y": 570, "label": "JSON response", "variant": "return" },
+    { "from": "react", "to": "canvas", "y": 620, "label": "animateSearch()", "variant": "emphasis" },
+    { "from": "react", "to": "canvas", "y": 660, "label": "animatePath()", "variant": "dashed" },
+    { "from": "canvas", "to": "user", "y": 700, "label": "visual result", "variant": "return" }
+  ],
+  "activations": [
+    { "participant": "api", "from": 220, "to": 520, "type": "backend" },
+    { "participant": "algo", "from": 450, "to": 520, "type": "backend" },
+    { "participant": "canvas", "from": 610, "to": 710, "type": "frontend" }
+  ],
+  "cards": [
+    { "dot": "emerald", "title": "Search loop", "items": ["Algorithm expands nodes via problem.actions() + problem.result()", "Metrics track expand count, frontier size, time"] },
+    { "dot": "cyan", "title": "Animation", "items": ["visited_order → cells light up (expand viz)", "path → Pac-man walks with eat effects + audio"] }
+  ]
+}

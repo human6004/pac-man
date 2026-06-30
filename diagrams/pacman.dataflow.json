@@ -1,0 +1,47 @@
+{
+  "schema_version": 1,
+  "diagram_type": "dataflow",
+  "meta": {
+    "title": "Pac-man AI Data Flow",
+    "subtitle": "Map layout → GameState → search tree → metrics → visualization",
+    "output": "dataflow.html",
+    "viewBox": [1080, 720]
+  },
+  "stages": [
+    { "label": "Source" },
+    { "label": "Parse" },
+    { "label": "Search" },
+    { "label": "Results" },
+    { "label": "Render" }
+  ],
+  "nodes": [
+    { "id": "mapfile", "type": "cloud", "label": "Map File", "sublabel": "small/medium/classic", "stage": 0, "row": 0, "tag": ".txt" },
+    { "id": "config", "type": "frontend", "label": "User Config", "sublabel": "algo/heuristic/mode", "stage": 0, "row": 2, "tag": "UI select" },
+    { "id": "layout", "type": "backend", "label": "Layout Parser", "sublabel": "parse_layout()", "stage": 1, "row": 0, "tag": "builder" },
+    { "id": "state", "type": "database", "label": "GameState", "sublabel": "immutable frozen", "stage": 1, "row": 2, "tag": "dataclass" },
+    { "id": "problem", "type": "backend", "label": "SearchProblem", "sublabel": "EatAll / PathTo", "stage": 2, "row": 0, "tag": "AIMA" },
+    { "id": "tree", "type": "backend", "label": "Search Tree", "sublabel": "expand + generate", "stage": 2, "row": 2, "tag": "Node graph" },
+    { "id": "hfn", "type": "security", "label": "Heuristic h(n)", "sublabel": "manhattan/food", "stage": 2, "row": 4, "tag": "admissible" },
+    { "id": "result", "type": "database", "label": "SearchResult", "sublabel": "path + visited", "stage": 3, "row": 0, "tag": "frozen" },
+    { "id": "metrics", "type": "messagebus", "label": "SearchMetrics", "sublabel": "expand/time/cost", "stage": 3, "row": 2, "tag": "counters" },
+    { "id": "canvas", "type": "frontend", "label": "Canvas Anim", "sublabel": "PacmanRenderer", "stage": 4, "row": 0, "tag": "visual" },
+    { "id": "stats", "type": "frontend", "label": "Stats Panel", "sublabel": "CompareTable", "stage": 4, "row": 2, "tag": "UI" }
+  ],
+  "flows": [
+    { "from": "mapfile", "to": "layout", "label": "raw text", "classification": "file I/O", "variant": "emphasis", "route": "straight" },
+    { "from": "config", "to": "problem", "label": "algo + heuristic", "classification": "user choice", "variant": "default", "fromSide": "right", "toSide": "left", "via": [[222, 385], [222, 271], [400, 271], [400, 157]], "labelAt": [280, 220] },
+    { "from": "layout", "to": "state", "label": "GameState", "classification": "parsed", "variant": "emphasis", "fromSide": "bottom", "toSide": "top", "route": "straight", "labelAt": [315, 280] },
+    { "from": "state", "to": "problem", "label": "initial state", "classification": "frozen", "variant": "emphasis", "fromSide": "right", "toSide": "left", "via": [[420, 385], [420, 157]], "labelAt": [438, 280] },
+    { "from": "problem", "to": "tree", "label": "actions/result", "classification": "expand loop", "variant": "emphasis", "fromSide": "bottom", "toSide": "top", "route": "straight", "labelAt": [530, 255] },
+    { "from": "hfn", "to": "tree", "label": "h(state)", "classification": "cost estimate", "variant": "security", "fromSide": "top", "toSide": "bottom", "route": "straight", "labelAt": [530, 468] },
+    { "from": "tree", "to": "result", "label": "path + visited", "classification": "solution", "variant": "emphasis", "route": "straight", "labelAt": [638, 220] },
+    { "from": "tree", "to": "metrics", "label": "counters", "classification": "perf data", "variant": "dashed", "fromSide": "bottom", "toSide": "top", "route": "straight", "labelAt": [638, 400] },
+    { "from": "result", "to": "canvas", "label": "animation data", "classification": "render input", "variant": "emphasis", "route": "straight" },
+    { "from": "metrics", "to": "stats", "label": "stats JSON", "classification": "display", "variant": "default", "route": "straight" }
+  ],
+  "cards": [
+    { "dot": "emerald", "title": "Primary Data Path", "items": ["Map text → GameState → SearchProblem → SearchTree → Result → Canvas", "All state objects are immutable (frozen dataclass / frozenset)"] },
+    { "dot": "rose", "title": "Heuristic Pipeline", "items": ["Heuristic registry provides h(n) to Greedy/A* algorithms", "5 heuristics: null, manhattan, nearest/farthest food, food count", "Admissibility guarantees A* optimality"] },
+    { "dot": "cyan", "title": "Metrics Branch", "items": ["SearchMetrics collected during expand loop", "Nodes expanded, generated, max frontier, time_ms, cost", "Displayed in StatsPanel and CompareTable"] }
+  ]
+}
