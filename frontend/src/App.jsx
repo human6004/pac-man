@@ -47,6 +47,7 @@ export default function App() {
   const [poweron, setPoweron] = useState(true);
   const [mapError, setMapError] = useState(null);
   const [selectedRow, setSelectedRow] = useState(null);
+  const [tab, setTab] = useState("play"); // "play" = chạy 1 thuật toán | "compare" = so sánh
 
   const onLose = useCallback(() => {
     const wrap = screenWrapRef.current;
@@ -131,38 +132,55 @@ export default function App() {
   const handleStepBack = useCallback(() => runner.step(cfg, -1), [runner, cfg]);
   const handleCompare = useCallback(() => runner.compare(cfg), [runner, cfg]);
 
+  const backendError = (meta.error || mapError) && (
+    <div className="crt-panel p-3 font-term text-[18px]" style={{ color: "var(--color-clyde)" }}>
+      {meta.error
+        ? `Không kết nối được backend (${Api.baseUrl}). Hãy chạy: py -3.12 -m uvicorn backend.api.main:app`
+        : mapError}
+    </div>
+  );
+
   return (
     <Cabinet>
+      {/* Thanh tab */}
+      <div className="flex gap-2 mb-4">
+        <button
+          className={`tab-btn ${tab === "play" ? "tab-on" : ""}`}
+          onClick={() => setTab("play")}
+        >
+          ▶ Chạy thuật toán
+        </button>
+        <button
+          className={`tab-btn ${tab === "compare" ? "tab-on" : ""}`}
+          onClick={() => setTab("compare")}
+        >
+          ⊞ So sánh thuật toán
+        </button>
+      </div>
+
       <div className="grid gap-5 lg:grid-cols-[1fr_320px] items-start">
-        {/* Cột màn hình + số liệu */}
+        {/* Cột nội dung */}
         <div className="flex flex-col gap-4 order-2 lg:order-1">
-          <div ref={screenWrapRef}>
+          {/* Canvas luôn gắn trong DOM (renderer tạo 1 lần); ẩn khi ở tab so sánh. */}
+          <div ref={screenWrapRef} className={tab === "play" ? "" : "hidden"}>
             <CRTScreen ref={canvasRef} poweron={poweron} />
           </div>
 
-          {(meta.error || mapError) && (
-            <div
-              className="crt-panel p-3 font-term text-[18px]"
-              style={{ color: "var(--color-clyde)" }}
-            >
-              {meta.error
-                ? `Không kết nối được backend (${Api.baseUrl}). Hãy chạy: py -3.12 -m uvicorn backend.api.main:app`
-                : mapError}
-            </div>
-          )}
+          {backendError}
 
-          <StatsPanel
-            status={runner.status}
-            stats={runner.stats}
-            scoreStat={runner.scoreStat}
-          />
-
-          <SearchTreePanel
-            tree={runner.tree}
-            active={cfg.mode === "static" && cfg.problem === "path_to_nearest"}
-          />
-
-          {runner.compareRows.length > 0 && (
+          {tab === "play" ? (
+            <>
+              <StatsPanel
+                status={runner.status}
+                stats={runner.stats}
+                scoreStat={runner.scoreStat}
+              />
+              <SearchTreePanel
+                tree={runner.tree}
+                active={cfg.mode === "static" && cfg.problem === "path_to_nearest"}
+              />
+            </>
+          ) : runner.compareRows.length > 0 ? (
             <>
               <ComparisonView
                 rows={runner.compareRows}
@@ -178,12 +196,17 @@ export default function App() {
               {selectedRow && <FghChart row={selectedRow} algoInfo={meta.algoInfo} />}
               <CompareCharts rows={runner.compareRows} algoInfo={meta.algoInfo} />
             </>
+          ) : (
+            <div className="crt-panel p-4 crt-label">
+              Chọn các thuật toán bên phải rồi bấm "So sánh" để xem kết quả.
+            </div>
           )}
         </div>
 
         {/* Cột điều khiển */}
         <div className="order-1 lg:order-2">
           <ControlDeck
+            tab={tab}
             maps={meta.maps}
             algorithms={meta.algorithms}
             heuristics={meta.heuristics}

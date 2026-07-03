@@ -13,6 +13,7 @@ const ADV_ALGOS = [
 const GROUP_LABEL = { uninformed: "Tìm kiếm mù", informed: "Tìm kiếm có thông tin" };
 
 export function ControlDeck({
+  tab = "play",
   maps,
   algorithms,
   heuristics,
@@ -34,6 +35,7 @@ export function ControlDeck({
 
   const isStatic = cfg.mode === "static";
   const usesHeuristic = isStatic && algoInfo?.[cfg.algorithm]?.uses_heuristic;
+  const isCompare = tab === "compare";
 
   // Nhóm thuật toán tĩnh theo uninformed/informed.
   const groups = { uninformed: [], informed: [] };
@@ -44,7 +46,7 @@ export function ControlDeck({
   return (
     <div className="crt-panel p-4 flex flex-col gap-3">
       <div className="flex items-center justify-between">
-        <h2 className="crt-label">◢ Insert Coin</h2>
+        <h2 className="crt-label">◢ {isCompare ? "So sánh" : "Insert Coin"}</h2>
         <button
           className="font-term text-[18px] leading-none px-2 py-1 rounded border"
           style={{
@@ -65,15 +67,8 @@ export function ControlDeck({
         </select>
       </Field>
 
-      <Field label="Chế độ">
-        <select className="crt-select" value={cfg.mode} disabled={busy}
-          onChange={(e) => set({ mode: e.target.value })}>
-          <option value="static">Tĩnh (tìm đường / ăn hết food)</option>
-          <option value="adversarial">Đối kháng (có ma)</option>
-        </select>
-      </Field>
-
-      {isStatic ? (
+      {/* ---- TAB SO SÁNH: chỉ static, chọn bài toán + heuristic + nhiều thuật toán ---- */}
+      {isCompare ? (
         <>
           <Field label="Bài toán">
             <select className="crt-select" value={cfg.problem} disabled={busy}
@@ -82,113 +77,140 @@ export function ControlDeck({
               <option value="path_to_nearest">Đi tới food gần nhất</option>
             </select>
           </Field>
-          <Field label="Thuật toán">
-            <select className="crt-select" value={cfg.algorithm} disabled={busy}
-              onChange={(e) => set({ algorithm: e.target.value })}>
-              {["uninformed", "informed"].map((g) =>
-                groups[g].length ? (
-                  <optgroup key={g} label={GROUP_LABEL[g]}>
-                    {groups[g].map((a) => <option key={a.key} value={a.key}>{a.name}</option>)}
-                  </optgroup>
-                ) : null
-              )}
+          <Field label="Heuristic (cho A*/Greedy)">
+            <select className="crt-select" value={cfg.heuristic} disabled={busy}
+              onChange={(e) => set({ heuristic: e.target.value })}>
+              {heuristics.map((h) => <option key={h} value={h}>{h}</option>)}
             </select>
           </Field>
-          {usesHeuristic && (
-            <Field label="Heuristic">
-              <select className="crt-select" value={cfg.heuristic} disabled={busy}
-                onChange={(e) => set({ heuristic: e.target.value })}>
-                {heuristics.map((h) => <option key={h} value={h}>{h}</option>)}
-              </select>
+          <Field label="Chọn thuật toán để so sánh">
+            <div className="grid grid-cols-2 gap-1">
+              {[...groups.uninformed, ...groups.informed].map((a) => {
+                const checked = (cfg.compareAlgos || []).includes(a.key);
+                return (
+                  <label key={a.key} className="flex items-center gap-1 crt-label cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={checked}
+                      disabled={busy}
+                      onChange={(e) => {
+                        const cur = new Set(cfg.compareAlgos || []);
+                        if (e.target.checked) cur.add(a.key);
+                        else cur.delete(a.key);
+                        set({ compareAlgos: [...cur] });
+                      }}
+                    />
+                    {a.name}
+                  </label>
+                );
+              })}
+            </div>
+          </Field>
+          <button className="arcade-btn btn-compare" disabled={busy} onClick={onCompare}>
+            ⊞ So sánh {(cfg.compareAlgos || []).length || "tất cả"}
+          </button>
+        </>
+      ) : (
+        /* ---- TAB CHẠY: 1 thuật toán, chọn chế độ + cách chạy ---- */
+        <>
+          <Field label="Chế độ">
+            <select className="crt-select" value={cfg.mode} disabled={busy}
+              onChange={(e) => set({ mode: e.target.value })}>
+              <option value="static">Tĩnh (tìm đường / ăn hết food)</option>
+              <option value="adversarial">Đối kháng (có ma)</option>
+            </select>
+          </Field>
+
+          {isStatic ? (
+            <>
+              <Field label="Bài toán">
+                <select className="crt-select" value={cfg.problem} disabled={busy}
+                  onChange={(e) => set({ problem: e.target.value })}>
+                  <option value="eat_all">Ăn hết food</option>
+                  <option value="path_to_nearest">Đi tới food gần nhất</option>
+                </select>
+              </Field>
+              <Field label="Thuật toán">
+                <select className="crt-select" value={cfg.algorithm} disabled={busy}
+                  onChange={(e) => set({ algorithm: e.target.value })}>
+                  {["uninformed", "informed"].map((g) =>
+                    groups[g].length ? (
+                      <optgroup key={g} label={GROUP_LABEL[g]}>
+                        {groups[g].map((a) => <option key={a.key} value={a.key}>{a.name}</option>)}
+                      </optgroup>
+                    ) : null
+                  )}
+                </select>
+              </Field>
+              {usesHeuristic && (
+                <Field label="Heuristic">
+                  <select className="crt-select" value={cfg.heuristic} disabled={busy}
+                    onChange={(e) => set({ heuristic: e.target.value })}>
+                    {heuristics.map((h) => <option key={h} value={h}>{h}</option>)}
+                  </select>
+                </Field>
+              )}
+            </>
+          ) : (
+            <>
+              <Field label="Thuật toán">
+                <select className="crt-select" value={cfg.advAlgorithm} disabled={busy}
+                  onChange={(e) => set({ advAlgorithm: e.target.value })}>
+                  {ADV_ALGOS.map((a) => <option key={a.key} value={a.key}>{a.name}</option>)}
+                </select>
+              </Field>
+              <Field label={`Độ sâu (depth): ${cfg.depth}`}>
+                <input type="range" className="crt-range" min={1} max={6} value={cfg.depth} disabled={busy}
+                  onChange={(e) => set({ depth: parseInt(e.target.value, 10) })} />
+              </Field>
+            </>
+          )}
+
+          <Field label="Cách chạy">
+            <div className="grid grid-cols-2 gap-2">
+              <button
+                type="button"
+                className={`arcade-btn ${cfg.runMode === "auto" ? "btn-run" : "btn-mode-off"}`}
+                disabled={busy}
+                onClick={() => set({ runMode: "auto" })}
+              >
+                ▶ Tự động
+              </button>
+              <button
+                type="button"
+                className={`arcade-btn ${cfg.runMode === "step" ? "btn-step" : "btn-mode-off"}`}
+                disabled={busy}
+                onClick={() => set({ runMode: "step" })}
+              >
+                ⇥ Từng bước
+              </button>
+            </div>
+          </Field>
+
+          {cfg.runMode === "auto" && (
+            <Field label={`Tốc độ: ${cfg.speed} bước/giây`}>
+              <input type="range" className="crt-range" min={1} max={60} value={cfg.speed}
+                onChange={(e) => set({ speed: parseInt(e.target.value, 10) })} />
             </Field>
           )}
+
+          {cfg.runMode === "auto" ? (
+            <div className="grid grid-cols-3 gap-2 mt-1">
+              <button className="arcade-btn btn-run" disabled={busy} onClick={onRun}>▶ Chạy</button>
+              <button className="arcade-btn btn-pause" disabled={!busy} onClick={onPause}>
+                {paused ? "▶ Tiếp" : "‖ Dừng"}
+              </button>
+              <button className="arcade-btn btn-reset" disabled={busy} onClick={onReset}>↻ Đặt lại</button>
+            </div>
+          ) : (
+            <div className="grid grid-cols-3 gap-2 mt-1">
+              <button className="arcade-btn btn-back" disabled={busy} onClick={onStepBack}>⇤ Quay lại</button>
+              <button className="arcade-btn btn-step" disabled={busy} onClick={onStep}>⇥ Bước tiếp</button>
+              <button className="arcade-btn btn-reset" disabled={busy} onClick={onReset}>↻ Đặt lại</button>
+            </div>
+          )}
         </>
-      ) : (
-        <>
-          <Field label="Thuật toán">
-            <select className="crt-select" value={cfg.advAlgorithm} disabled={busy}
-              onChange={(e) => set({ advAlgorithm: e.target.value })}>
-              {ADV_ALGOS.map((a) => <option key={a.key} value={a.key}>{a.name}</option>)}
-            </select>
-          </Field>
-          <Field label={`Độ sâu (depth): ${cfg.depth}`}>
-            <input type="range" className="crt-range" min={1} max={6} value={cfg.depth} disabled={busy}
-              onChange={(e) => set({ depth: parseInt(e.target.value, 10) })} />
-          </Field>
-        </>
       )}
-
-      <Field label="Cách chạy">
-        <div className="grid grid-cols-2 gap-2">
-          <button
-            type="button"
-            className={`arcade-btn ${cfg.runMode === "auto" ? "btn-run" : "btn-mode-off"}`}
-            disabled={busy}
-            onClick={() => set({ runMode: "auto" })}
-          >
-            ▶ Tự động
-          </button>
-          <button
-            type="button"
-            className={`arcade-btn ${cfg.runMode === "step" ? "btn-step" : "btn-mode-off"}`}
-            disabled={busy}
-            onClick={() => set({ runMode: "step" })}
-          >
-            ⇥ Từng bước
-          </button>
-        </div>
-      </Field>
-
-      {cfg.runMode === "auto" && (
-        <Field label={`Tốc độ: ${cfg.speed} bước/giây`}>
-          <input type="range" className="crt-range" min={1} max={60} value={cfg.speed}
-            onChange={(e) => set({ speed: parseInt(e.target.value, 10) })} />
-        </Field>
-      )}
-
-      {cfg.runMode === "auto" ? (
-        <div className="grid grid-cols-3 gap-2 mt-1">
-          <button className="arcade-btn btn-run" disabled={busy} onClick={onRun}>▶ Chạy</button>
-          <button className="arcade-btn btn-pause" disabled={!busy} onClick={onPause}>
-            {paused ? "▶ Tiếp" : "‖ Dừng"}
-          </button>
-          <button className="arcade-btn btn-reset" disabled={busy} onClick={onReset}>↻ Đặt lại</button>
-        </div>
-      ) : (
-        <div className="grid grid-cols-3 gap-2 mt-1">
-          <button className="arcade-btn btn-back" disabled={busy} onClick={onStepBack}>⇤ Quay lại</button>
-          <button className="arcade-btn btn-step" disabled={busy} onClick={onStep}>⇥ Bước tiếp</button>
-          <button className="arcade-btn btn-reset" disabled={busy} onClick={onReset}>↻ Đặt lại</button>
-        </div>
-      )}
-      {isStatic && (
-        <Field label="So sánh các thuật toán (chọn nhiều)">
-          <div className="grid grid-cols-2 gap-1">
-            {[...groups.uninformed, ...groups.informed].map((a) => {
-              const checked = (cfg.compareAlgos || []).includes(a.key);
-              return (
-                <label key={a.key} className="flex items-center gap-1 crt-label cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={checked}
-                    disabled={busy}
-                    onChange={(e) => {
-                      const cur = new Set(cfg.compareAlgos || []);
-                      if (e.target.checked) cur.add(a.key);
-                      else cur.delete(a.key);
-                      set({ compareAlgos: [...cur] });
-                    }}
-                  />
-                  {a.name}
-                </label>
-              );
-            })}
-          </div>
-        </Field>
-      )}
-      <button className="arcade-btn btn-compare" disabled={busy} onClick={onCompare}>
-        ⊞ So sánh {(cfg.compareAlgos || []).length || "tất cả"}
-      </button>
     </div>
   );
 }

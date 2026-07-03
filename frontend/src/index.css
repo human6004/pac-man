@@ -183,6 +183,14 @@ body {
 .btn-reset { background: var(--color-pinky);  box-shadow: 0 4px 0 #9c5e9c, 0 0 14px rgba(255,184,255,.4); }
 .btn-mode-off { background: #2a2a3a; color: var(--color-amber-dim); box-shadow: 0 4px 0 #14141c; }
 .btn-back  { background: var(--color-inky);   box-shadow: 0 4px 0 #0a9c9c, 0 0 14px rgba(0,255,255,.3); }
+
+.tab-btn {
+  font-family: var(--font-term); font-size: 20px; padding: 8px 18px;
+  border-radius: 8px 8px 0 0; border: 1px solid rgba(255,176,0,.3); border-bottom: none;
+  background: #14141c; color: var(--color-amber-dim); cursor: pointer;
+}
+.tab-btn.tab-on { background: var(--color-maze); color: #dfe3ff; box-shadow: 0 0 14px rgba(33,33,222,.5); }
+.tab-btn:not(.tab-on):hover { color: var(--color-pac); }
 .btn-compare {
   background: var(--color-maze);
   color: #dfe3ff;
