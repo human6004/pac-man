@@ -16,6 +16,8 @@ export function useRunner(rendererRef, onLose) {
   const [stats, setStats] = useState(null);     // {nodes_expanded, time_ms, ...}
   const [scoreStat, setScoreStat] = useState(null);
   const [compareRows, setCompareRows] = useState([]);
+  const [compareMap, setCompareMap] = useState(null);
+  const [tree, setTree] = useState([]);
   const [busy, setBusy] = useState(false);
   const [paused, setPaused] = useState(false);
 
@@ -28,6 +30,7 @@ export function useRunner(rendererRef, onLose) {
   const lastSolveRef = useRef(null);
   const lastFramesRef = useRef(null);
   const stepIndexRef = useRef(0);
+  const visitedStepRef = useRef(0);
 
   const stepDelay = useCallback((speed) => {
     const sps = Math.max(1, speed || 12);
@@ -67,6 +70,7 @@ export function useRunner(rendererRef, onLose) {
       });
       lastSolveRef.current = result;
       stepIndexRef.current = 0;
+      setTree(result.tree || []);
 
       if (!result.found) {
         setStats(result.stats);
@@ -165,6 +169,7 @@ export function useRunner(rendererRef, onLose) {
       effects.clear();
       stopRef.current = false;
       runningRef.current = true;
+      visitedStepRef.current = 0;
       setBusy(true);
       setCompareRows([]);
       audio.start();
@@ -197,15 +202,19 @@ export function useRunner(rendererRef, onLose) {
     lastSolveRef.current = null;
     lastFramesRef.current = null;
     stepIndexRef.current = 0;
+    visitedStepRef.current = 0;
     setStats(null);
     setScoreStat(null);
     setCompareRows([]);
+    setCompareMap(null);
+    setTree([]);
     setStatus("Đã đặt lại");
   }, [rendererRef, stopAnimation]);
 
   const stepStatic = useCallback(
     async (cfg) => {
       const r = rendererRef.current;
+      // Lần Step đầu: gọi solve, KHÔNG lộ hết visited — để reveal từng node.
       if (!lastSolveRef.current) {
         setBusy(true);
         try {
@@ -217,18 +226,39 @@ export function useRunner(rendererRef, onLose) {
           });
           lastSolveRef.current = result;
           stepIndexRef.current = 0;
+          visitedStepRef.current = 0;
+          setTree(result.tree || []);
           r.reset();
-          r.visited = result.visited_order.slice();
+          r.visited = [];
           r.path = [];
           r.draw();
           setStats(result.stats);
-          setStatus(result.found ? "Đã giải — bấm Từng bước để đi" : "Không tìm thấy");
+          setStatus(
+            result.found
+              ? "Đã giải — bấm Step để xem từng node expand"
+              : "Không tìm thấy"
+          );
         } finally {
           setBusy(false);
         }
         return;
       }
-      const path = lastSolveRef.current.path;
+
+      const solve = lastSolveRef.current;
+      const visited = solve.visited_order || [];
+
+      // Pha 1: reveal từng node đã expand.
+      if (visitedStepRef.current < visited.length) {
+        const vi = visitedStepRef.current;
+        r.visited = visited.slice(0, vi + 1);
+        r.draw();
+        visitedStepRef.current++;
+        setStatus(`Expand node ${visitedStepRef.current}/${visited.length}`);
+        return;
+      }
+
+      // Pha 2: đi dọc đường đi lời giải.
+      const path = solve.path;
       const idx = stepIndexRef.current;
       if (!path || idx >= path.length) {
         setStatus("Đã đi hết đường");
@@ -279,16 +309,21 @@ export function useRunner(rendererRef, onLose) {
   );
 
   const compare = useCallback(async (cfg) => {
+    const algos =
+      cfg.compareAlgos && cfg.compareAlgos.length
+        ? cfg.compareAlgos
+        : ["bfs", "dfs", "ucs", "ids", "greedy", "astar"];
     setBusy(true);
-    setStatus("Đang so sánh các thuật toán...");
+    setStatus("Đang so sánh " + algos.length + " thuật toán...");
     try {
       const result = await Api.compare({
         map: cfg.map,
-        algorithms: ["bfs", "dfs", "ucs", "ids", "greedy", "astar"],
+        algorithms: algos,
         heuristic: cfg.heuristic,
         problem: cfg.problem,
       });
       setCompareRows(result.results);
+      setCompareMap(result.map);
       setStatus("So sánh xong");
     } catch (e) {
       setStatus("Lỗi so sánh: " + e.message);
@@ -299,7 +334,7 @@ export function useRunner(rendererRef, onLose) {
   }, []);
 
   return {
-    status, stats, scoreStat, compareRows, busy, paused,
+    status, stats, scoreStat, compareRows, compareMap, tree, busy, paused,
     run, pause, step, reset, compare, stopAnimation, setStatus,
   };
 }

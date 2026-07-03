@@ -44,8 +44,18 @@ ADVERSARIAL_ALGOS: Dict[str, Callable] = {
 }
 
 
+# Thuật toán đảm bảo tối ưu (cost đều = 1). A* tối ưu khi heuristic admissible;
+# các heuristic trong dự án đều admissible nên coi A* là tối ưu.
+OPTIMAL_ALGOS = {"bfs", "ucs", "ids", "astar"}
+
+
 def is_informed(algo: str) -> bool:
     return SEARCH_INFO.get(algo, {}).get("uses_heuristic", False)
+
+
+def is_optimal(algo: str, heuristic: str = "") -> bool:
+    """Thuật toán có đảm bảo lời giải tối ưu không (cột Optimal trong bảng)."""
+    return algo in OPTIMAL_ALGOS
 
 
 def list_algorithms() -> List[dict]:

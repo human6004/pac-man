@@ -103,3 +103,38 @@ def test_nearest_food_picks_closest():
     s = parse_layout(SMALL)
     # P=(1,1); food gần nhất phải là (1,2) (cách 1) chứ không phải ô xa hơn.
     assert nearest_food(s) == (1, 2)
+
+
+def test_astar_records_search_tree_with_ghf():
+    # record_tree=True -> tree gồm các node đã expand, mỗi node có g/h/f.
+    s = parse_layout(SMALL)
+    r = astar(PathToPointProblem(s, nearest_food(s)), goal_manhattan, record_tree=True)
+    assert r.found
+    assert len(r.tree) >= 1
+    root = r.tree[0]
+    assert root["parent"] is None                    # gốc không có cha
+    for node in r.tree:
+        assert {"id", "parent", "pos", "g", "h", "f"} <= set(node)
+        assert node["f"] == node["g"] + node["h"]     # f = g + h
+
+
+def test_bfs_tree_h_is_zero():
+    # Uninformed -> h = 0 nên f = g.
+    s = parse_layout(SMALL)
+    r = bfs(PathToPointProblem(s, nearest_food(s)), record_tree=True)
+    assert all(node["h"] == 0 for node in r.tree)
+
+
+def test_tree_empty_when_not_recording():
+    s = parse_layout(SMALL)
+    r = bfs(EatAllFoodProblem(s))
+    assert r.tree == []
+
+
+def test_metrics_memory_and_depth():
+    s = parse_layout(SMALL)
+    r = bfs(EatAllFoodProblem(s))
+    assert r.metrics.memory_kb >= 0
+    # search_depth = độ sâu lớn nhất của node ĐƯỢC EXPAND. BFS goal-test lúc sinh
+    # node nên node đích không được expand -> depth có thể nhỏ hơn path_length 1.
+    assert r.metrics.search_depth >= r.metrics.path_length - 1

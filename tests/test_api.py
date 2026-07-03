@@ -90,6 +90,55 @@ def test_compare_returns_rows():
     for row in rows:
         assert row["found"] is True
         assert row["stats"]["path_length"] >= 1
+        # Mỗi row có dữ liệu để dựng maze side-by-side + cột optimal.
+        assert "path" in row and "visited_order" in row
+        assert "optimal" in row
+        assert row["stats"]["memory_kb"] >= 0
+
+
+def test_solve_path_to_nearest_returns_tree():
+    r = client.post(
+        "/solve",
+        json={"map": "small", "algorithm": "astar", "problem": "path_to_nearest"},
+    )
+    assert r.status_code == 200
+    tree = r.json()["tree"]
+    assert len(tree) >= 1
+    assert tree[0]["parent"] is None
+    for node in tree:
+        assert {"id", "parent", "pos", "g", "h", "f"} <= set(node)
+
+
+def test_solve_eat_all_no_tree():
+    # Bài ăn hết food không dựng cây (gate ở backend).
+    r = client.post(
+        "/solve",
+        json={
+            "map": "small",
+            "algorithm": "astar",
+            "heuristic": "farthest_food",
+            "problem": "eat_all",
+        },
+    )
+    assert r.status_code == 200
+    assert r.json()["tree"] == []
+
+
+def test_compare_path_to_nearest_has_tree_and_optimal():
+    r = client.post(
+        "/compare",
+        json={
+            "map": "small",
+            "algorithms": ["astar", "greedy", "bfs"],
+            "problem": "path_to_nearest",
+        },
+    )
+    assert r.status_code == 200
+    rows = {row["algorithm"]: row for row in r.json()["results"]}
+    assert len(rows["astar"]["tree"]) >= 1
+    # bfs tối ưu, greedy thì không.
+    assert rows["bfs"]["optimal"] is True
+    assert rows["greedy"]["optimal"] is False
 
 
 def test_adversarial_runs():

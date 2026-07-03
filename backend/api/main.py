@@ -26,6 +26,7 @@ from ..search.registry import (
     ADVERSARIAL_ALGOS,
     SEARCH_ALGOS,
     is_informed,
+    is_optimal,
     list_algorithms,
     list_heuristics,
 )
@@ -95,6 +96,10 @@ def run_static(map_name: str, algo: str, heuristic_name: str, problem_kind: str)
     if algo not in SEARCH_ALGOS:
         raise HTTPException(400, f"Thuật toán tĩnh '{algo}' không hợp lệ.")
 
+    # Chỉ dựng cây tìm kiếm cho bài 'đi tới food gần nhất' (state = vị trí Pac-man
+    # -> cây gọn). Bài 'ăn hết food' có state chứa tập food -> cây bùng nổ, không dựng.
+    record_tree = problem_kind == "path_to_nearest"
+
     if problem_kind == "eat_all" and start.num_food > EAT_ALL_MAX_FOOD:
         raise HTTPException(
             400,
@@ -118,9 +123,9 @@ def run_static(map_name: str, algo: str, heuristic_name: str, problem_kind: str)
 
     if is_informed(algo):
         h = get_heuristic(heuristic_name)
-        result = fn(problem, h)
+        result = fn(problem, h, record_tree=record_tree)
     else:
-        result = fn(problem)
+        result = fn(problem, record_tree=record_tree)
     return result
 
 
@@ -171,10 +176,18 @@ def compare(req: CompareRequest):
             {
                 "algorithm": algo,
                 "found": result.found,
+                "optimal": is_optimal(algo, req.heuristic),
+                "path": [list(p) for p in result.path],
+                "visited_order": [list(p) for p in result.visited_order],
+                "tree": result.tree,
                 "stats": result.metrics.to_dict() if result.metrics else None,
             }
         )
-    return {"map": req.map, "problem": req.problem, "results": rows}
+    return {
+        "map": serialize_map(load_layout(req.map)),
+        "problem": req.problem,
+        "results": rows,
+    }
 
 
 @app.post("/adversarial")

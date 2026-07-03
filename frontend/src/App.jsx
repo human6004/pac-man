@@ -12,6 +12,10 @@ import { CRTScreen } from "./components/CRTScreen";
 import { ControlDeck } from "./components/ControlDeck";
 import { StatsPanel } from "./components/StatsPanel";
 import { CompareTable } from "./components/CompareTable";
+import { ComparisonView } from "./components/ComparisonView";
+import { CompareCharts } from "./components/CompareCharts";
+import { FghChart } from "./components/FghChart";
+import { SearchTreePanel } from "./components/SearchTreePanel";
 import { PacmanRenderer } from "./game/PacmanRenderer";
 import { effects } from "./game/effects";
 import { audio } from "./sound/audio";
@@ -28,6 +32,7 @@ const DEFAULT_CFG = {
   advAlgorithm: "alphabeta",
   depth: 3,
   speed: 12,
+  compareAlgos: ["astar", "greedy"],
 };
 
 export default function App() {
@@ -40,6 +45,7 @@ export default function App() {
   const [soundOn, setSoundOn] = useState(true);
   const [poweron, setPoweron] = useState(true);
   const [mapError, setMapError] = useState(null);
+  const [selectedRow, setSelectedRow] = useState(null);
 
   const onLose = useCallback(() => {
     const wrap = screenWrapRef.current;
@@ -114,6 +120,11 @@ export default function App() {
     audio.setEnabled(soundOn);
   }, [soundOn]);
 
+  // Bỏ chọn dòng f/g/h khi kết quả so sánh thay đổi (tránh trỏ vào row cũ).
+  useEffect(() => {
+    setSelectedRow(null);
+  }, [runner.compareRows]);
+
   const handleRun = useCallback(() => runner.run(cfg), [runner, cfg]);
   const handleStep = useCallback(() => runner.step(cfg), [runner, cfg]);
   const handleCompare = useCallback(() => runner.compare(cfg), [runner, cfg]);
@@ -143,7 +154,29 @@ export default function App() {
             stats={runner.stats}
             scoreStat={runner.scoreStat}
           />
-          <CompareTable rows={runner.compareRows} algoInfo={meta.algoInfo} />
+
+          <SearchTreePanel
+            tree={runner.tree}
+            active={cfg.mode === "static" && cfg.problem === "path_to_nearest"}
+          />
+
+          {runner.compareRows.length > 0 && (
+            <>
+              <ComparisonView
+                rows={runner.compareRows}
+                mapData={runner.compareMap}
+                algoInfo={meta.algoInfo}
+              />
+              <CompareTable
+                rows={runner.compareRows}
+                algoInfo={meta.algoInfo}
+                onSelectAlgo={setSelectedRow}
+                selectedAlgo={selectedRow?.algorithm}
+              />
+              {selectedRow && <FghChart row={selectedRow} algoInfo={meta.algoInfo} />}
+              <CompareCharts rows={runner.compareRows} algoInfo={meta.algoInfo} />
+            </>
+          )}
         </div>
 
         {/* Cột điều khiển */}

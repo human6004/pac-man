@@ -130,8 +130,33 @@ export function ControlDeck({
         <button className="arcade-btn btn-step" disabled={busy} onClick={onStep}>⇥ Step</button>
         <button className="arcade-btn btn-reset" disabled={busy} onClick={onReset}>↻ Reset</button>
       </div>
+      {isStatic && (
+        <Field label="So sánh các thuật toán (chọn nhiều)">
+          <div className="grid grid-cols-2 gap-1">
+            {[...groups.uninformed, ...groups.informed].map((a) => {
+              const checked = (cfg.compareAlgos || []).includes(a.key);
+              return (
+                <label key={a.key} className="flex items-center gap-1 crt-label cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={checked}
+                    disabled={busy}
+                    onChange={(e) => {
+                      const cur = new Set(cfg.compareAlgos || []);
+                      if (e.target.checked) cur.add(a.key);
+                      else cur.delete(a.key);
+                      set({ compareAlgos: [...cur] });
+                    }}
+                  />
+                  {a.name}
+                </label>
+              );
+            })}
+          </div>
+        </Field>
+      )}
       <button className="arcade-btn btn-compare" disabled={busy} onClick={onCompare}>
-        ⊞ So sánh tất cả
+        ⊞ So sánh {(cfg.compareAlgos || []).length || "tất cả"}
       </button>
     </div>
   );

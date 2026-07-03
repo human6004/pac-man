@@ -20,6 +20,7 @@ class SearchResult:
     actions: List[Direction] = field(default_factory=list)      # chuỗi hành động từ initial -> goal
     path: List[Position] = field(default_factory=list)           # các ô Pac-man đi qua
     visited_order: List[Position] = field(default_factory=list)  # thứ tự ô được EXPAND (để minh họa)
+    tree: List[dict] = field(default_factory=list)               # node đã expand: {id,parent,pos,g,h,f}
     metrics: Optional[SearchMetrics] = None
 
     def to_dict(self) -> dict:
@@ -28,6 +29,7 @@ class SearchResult:
             "actions": [a.value for a in self.actions],
             "path": [list(p) for p in self.path],
             "visited_order": [list(p) for p in self.visited_order],
+            "tree": self.tree,
             "stats": self.metrics.to_dict() if self.metrics else None,
         }
 
@@ -40,6 +42,7 @@ class Node:
     parent: Optional["Node"] = None
     action: Optional[Direction] = None
     cost: float = 0.0  # g(n): chi phí tích lũy từ gốc
+    nid: int = 0       # id chạy (để dựng cây tìm kiếm cho FE)
 
     def reconstruct(self):
         """Lần ngược về gốc -> trả (actions, path các vị trí Pac-man)."""
@@ -54,3 +57,17 @@ class Node:
         actions.reverse()
         positions.reverse()
         return actions, positions
+
+
+def record_node(tree: List[dict], node: "Node", h_val: float) -> None:
+    """Ghi 1 node đã EXPAND vào cây tìm kiếm (cho FE dựng cây g/h/f)."""
+    tree.append(
+        {
+            "id": node.nid,
+            "parent": node.parent.nid if node.parent else None,
+            "pos": list(node.state.pacman),
+            "g": node.cost,
+            "h": h_val,
+            "f": node.cost + h_val,
+        }
+    )
