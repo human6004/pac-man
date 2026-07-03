@@ -32,6 +32,7 @@ const DEFAULT_CFG = {
   advAlgorithm: "alphabeta",
   depth: 3,
   speed: 12,
+  runMode: "auto", // "auto" = tự chạy | "step" = bấm từng bước
   compareAlgos: ["astar", "greedy"],
 };
 
@@ -126,7 +127,8 @@ export default function App() {
   }, [runner.compareRows]);
 
   const handleRun = useCallback(() => runner.run(cfg), [runner, cfg]);
-  const handleStep = useCallback(() => runner.step(cfg), [runner, cfg]);
+  const handleStep = useCallback(() => runner.step(cfg, 1), [runner, cfg]);
+  const handleStepBack = useCallback(() => runner.step(cfg, -1), [runner, cfg]);
   const handleCompare = useCallback(() => runner.compare(cfg), [runner, cfg]);
 
   return (
@@ -195,6 +197,7 @@ export default function App() {
             onRun={handleRun}
             onPause={runner.pause}
             onStep={handleStep}
+            onStepBack={handleStepBack}
             onReset={runner.reset}
             onCompare={handleCompare}
           />

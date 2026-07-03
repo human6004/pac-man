@@ -181,6 +181,8 @@ body {
 .btn-pause { background: var(--color-clyde);  box-shadow: 0 4px 0 #9c6e20, 0 0 14px rgba(255,184,82,.4); }
 .btn-step  { background: var(--color-inky);   box-shadow: 0 4px 0 #0a9c9c, 0 0 14px rgba(0,255,255,.4); }
 .btn-reset { background: var(--color-pinky);  box-shadow: 0 4px 0 #9c5e9c, 0 0 14px rgba(255,184,255,.4); }
+.btn-mode-off { background: #2a2a3a; color: var(--color-amber-dim); box-shadow: 0 4px 0 #14141c; }
+.btn-back  { background: var(--color-inky);   box-shadow: 0 4px 0 #0a9c9c, 0 0 14px rgba(0,255,255,.3); }
 .btn-compare {
   background: var(--color-maze);
   color: #dfe3ff;

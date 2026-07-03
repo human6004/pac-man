@@ -26,6 +26,7 @@ export function ControlDeck({
   onRun,
   onPause,
   onStep,
+  onStepBack,
   onReset,
   onCompare,
 }) {
@@ -117,19 +118,49 @@ export function ControlDeck({
         </>
       )}
 
-      <Field label={`Tốc độ: ${cfg.speed} bước/giây`}>
-        <input type="range" className="crt-range" min={1} max={60} value={cfg.speed}
-          onChange={(e) => set({ speed: parseInt(e.target.value, 10) })} />
+      <Field label="Cách chạy">
+        <div className="grid grid-cols-2 gap-2">
+          <button
+            type="button"
+            className={`arcade-btn ${cfg.runMode === "auto" ? "btn-run" : "btn-mode-off"}`}
+            disabled={busy}
+            onClick={() => set({ runMode: "auto" })}
+          >
+            ▶ Tự động
+          </button>
+          <button
+            type="button"
+            className={`arcade-btn ${cfg.runMode === "step" ? "btn-step" : "btn-mode-off"}`}
+            disabled={busy}
+            onClick={() => set({ runMode: "step" })}
+          >
+            ⇥ Từng bước
+          </button>
+        </div>
       </Field>
 
-      <div className="grid grid-cols-2 gap-2 mt-1">
-        <button className="arcade-btn btn-run" disabled={busy} onClick={onRun}>▶ Run</button>
-        <button className="arcade-btn btn-pause" disabled={!busy} onClick={onPause}>
-          {paused ? "▶ Tiếp" : "‖ Pause"}
-        </button>
-        <button className="arcade-btn btn-step" disabled={busy} onClick={onStep}>⇥ Step</button>
-        <button className="arcade-btn btn-reset" disabled={busy} onClick={onReset}>↻ Reset</button>
-      </div>
+      {cfg.runMode === "auto" && (
+        <Field label={`Tốc độ: ${cfg.speed} bước/giây`}>
+          <input type="range" className="crt-range" min={1} max={60} value={cfg.speed}
+            onChange={(e) => set({ speed: parseInt(e.target.value, 10) })} />
+        </Field>
+      )}
+
+      {cfg.runMode === "auto" ? (
+        <div className="grid grid-cols-3 gap-2 mt-1">
+          <button className="arcade-btn btn-run" disabled={busy} onClick={onRun}>▶ Chạy</button>
+          <button className="arcade-btn btn-pause" disabled={!busy} onClick={onPause}>
+            {paused ? "▶ Tiếp" : "‖ Dừng"}
+          </button>
+          <button className="arcade-btn btn-reset" disabled={busy} onClick={onReset}>↻ Đặt lại</button>
+        </div>
+      ) : (
+        <div className="grid grid-cols-3 gap-2 mt-1">
+          <button className="arcade-btn btn-back" disabled={busy} onClick={onStepBack}>⇤ Quay lại</button>
+          <button className="arcade-btn btn-step" disabled={busy} onClick={onStep}>⇥ Bước tiếp</button>
+          <button className="arcade-btn btn-reset" disabled={busy} onClick={onReset}>↻ Đặt lại</button>
+        </div>
+      )}
       {isStatic && (
         <Field label="So sánh các thuật toán (chọn nhiều)">
           <div className="grid grid-cols-2 gap-1">
