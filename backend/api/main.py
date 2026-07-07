@@ -96,9 +96,8 @@ def run_static(map_name: str, algo: str, heuristic_name: str, problem_kind: str)
     if algo not in SEARCH_ALGOS:
         raise HTTPException(400, f"Thuật toán tĩnh '{algo}' không hợp lệ.")
 
-    # Chỉ dựng cây tìm kiếm cho bài 'đi tới food gần nhất' (state = vị trí Pac-man
-    # -> cây gọn). Bài 'ăn hết food' có state chứa tập food -> cây bùng nổ, không dựng.
-    record_tree = problem_kind == "path_to_nearest"
+    # Cây luôn bật cho static, nhưng search layer tự cap để demo không làm nặng UI.
+    record_tree = True
 
     if problem_kind == "eat_all" and start.num_food > EAT_ALL_MAX_FOOD:
         raise HTTPException(
@@ -180,6 +179,8 @@ def compare(req: CompareRequest):
                 "path": [list(p) for p in result.path],
                 "visited_order": [list(p) for p in result.visited_order],
                 "tree": result.tree,
+                "tree_truncated": result.tree_truncated,
+                "tree_limit": result.tree_limit,
                 "stats": result.metrics.to_dict() if result.metrics else None,
             }
         )

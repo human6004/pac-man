@@ -1,11 +1,11 @@
-// ComparisonView.jsx — Hiển thị N maze cạnh nhau, mỗi thuật toán 1 canvas.
+// ComparisonView.jsx — So sánh cây duyệt của nhiều thuật toán.
 //
-// Nhận rows từ /compare (mỗi row có visited_order + path + stats) và mapData.
-// Số card tự scale: 1 -> 1 cột, 2 -> 2 cột, >=3 -> lưới tự co. Dùng lại
-// PacmanRenderer (imperative) cho mỗi canvas mini.
+// Nhận rows từ /compare (mỗi row có tree + stats). Cây là phần chính vì nó
+// cho thấy thuật toán khác nhau ở thứ tự mở node và độ rẽ nhánh.
 
 import { useEffect, useRef } from "react";
 import { PacmanRenderer } from "../game/PacmanRenderer";
+import { SearchTreePreview } from "./SearchTreePanel";
 
 function MiniMaze({ row, mapData, algoInfo }) {
   const canvasRef = useRef(null);
@@ -40,6 +40,17 @@ function MiniMaze({ row, mapData, algoInfo }) {
   );
 }
 
+function QuickStatItem({ label, row, unit, statKey, nameOf }) {
+  return (
+    <div>
+      <div className="crt-label text-[13px]">{label}</div>
+      <div className="font-term text-[20px]" style={{ color: "var(--color-pac)" }}>
+        {nameOf(row)} ({row.stats[statKey]}{unit})
+      </div>
+    </div>
+  );
+}
+
 function QuickStats({ rows, algoInfo }) {
   const valid = rows.filter((r) => !r.error && r.stats);
   if (!valid.length) return null;
@@ -51,39 +62,51 @@ function QuickStats({ rows, algoInfo }) {
   const efficient = minBy("nodes_expanded");
   const leastMem = minBy("memory_kb");
 
-  const Item = ({ label, r, unit, statKey }) => (
-    <div>
-      <div className="crt-label text-[13px]">{label}</div>
-      <div className="font-term text-[20px]" style={{ color: "var(--color-pac)" }}>
-        {nameOf(r)} ({r.stats[statKey]}{unit})
-      </div>
-    </div>
-  );
-
   return (
     <div className="crt-panel p-4 flex flex-col gap-3">
       <h2 className="crt-label">◢ Quick Stats</h2>
-      <Item label="Nhanh nhất" r={fastest} unit="ms" statKey="time_ms" />
-      <Item label="Ít node nhất" r={efficient} unit=" nodes" statKey="nodes_expanded" />
-      <Item label="Ít bộ nhớ nhất" r={leastMem} unit=" KB" statKey="memory_kb" />
+      <QuickStatItem label="Nhanh nhất" row={fastest} unit="ms" statKey="time_ms" nameOf={nameOf} />
+      <QuickStatItem label="Ít node nhất" row={efficient} unit=" nodes" statKey="nodes_expanded" nameOf={nameOf} />
+      <QuickStatItem label="Ít bộ nhớ nhất" row={leastMem} unit=" KB" statKey="memory_kb" nameOf={nameOf} />
     </div>
   );
 }
 
 export function ComparisonView({ rows, mapData, algoInfo }) {
-  if (!rows || rows.length === 0 || !mapData) return null;
+  if (!rows || rows.length === 0) return null;
 
-  const cols = rows.length <= 1 ? "grid-cols-1" : rows.length === 2 ? "grid-cols-2" : "grid-cols-2 xl:grid-cols-3";
+  const cols = rows.length <= 1 ? "grid-cols-1" : "grid-cols-1 2xl:grid-cols-2";
+  const nameOf = (row) => algoInfo?.[row.algorithm]?.name || row.algorithm;
+  const statLine = (row) => {
+    const s = row.stats || {};
+    return `expand ${s.nodes_expanded ?? "—"} · path ${s.path_length ?? "—"} · cost ${s.cost ?? "—"} · ${s.time_ms ?? "—"}ms`;
+  };
 
   return (
     <div className="grid gap-4 lg:grid-cols-[1fr_240px] items-start">
       <div>
-        <h2 className="crt-label mb-3">◢ So sánh trực quan ({rows.length} maze)</h2>
+        <h2 className="crt-label mb-3">◢ So sánh cây duyệt đồ thị ({rows.length} thuật toán)</h2>
         <div className={`grid gap-3 ${cols}`}>
           {rows.map((r) => (
-            <MiniMaze key={r.algorithm} row={r} mapData={mapData} algoInfo={algoInfo} />
+            <SearchTreePreview
+              key={r.algorithm}
+              tree={r.tree}
+              title={nameOf(r)}
+              subtitle={r.error ? r.error : statLine(r)}
+              treeMeta={{ truncated: !!r.tree_truncated, limit: r.tree_limit || 0 }}
+            />
           ))}
         </div>
+        {mapData && (
+          <div className="mt-4">
+            <h2 className="crt-label mb-3">◢ Kết quả đường đi trên maze</h2>
+            <div className="grid gap-3 md:grid-cols-2 2xl:grid-cols-4">
+              {rows.map((r) => (
+                <MiniMaze key={r.algorithm} row={r} mapData={mapData} algoInfo={algoInfo} />
+              ))}
+            </div>
+          </div>
+        )}
       </div>
       <QuickStats rows={rows} algoInfo={algoInfo} />
     </div>

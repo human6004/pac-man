@@ -106,11 +106,10 @@ def test_solve_path_to_nearest_returns_tree():
     assert len(tree) >= 1
     assert tree[0]["parent"] is None
     for node in tree:
-        assert {"id", "parent", "pos", "g", "h", "f"} <= set(node)
+        assert {"id", "parent", "pos", "food_left", "food", "power_pellets", "g", "h", "f"} <= set(node)
 
 
-def test_solve_eat_all_no_tree():
-    # Bài ăn hết food không dựng cây (gate ở backend).
+def test_solve_eat_all_returns_capped_tree():
     r = client.post(
         "/solve",
         json={
@@ -121,7 +120,11 @@ def test_solve_eat_all_no_tree():
         },
     )
     assert r.status_code == 200
-    assert r.json()["tree"] == []
+    data = r.json()
+    assert 0 < len(data["tree"]) <= data["tree_limit"]
+    assert isinstance(data["tree_truncated"], bool)
+    for node in data["tree"]:
+        assert {"created_order", "expanded_order", "action"} <= set(node)
 
 
 def test_compare_path_to_nearest_has_tree_and_optimal():
@@ -136,6 +139,7 @@ def test_compare_path_to_nearest_has_tree_and_optimal():
     assert r.status_code == 200
     rows = {row["algorithm"]: row for row in r.json()["results"]}
     assert len(rows["astar"]["tree"]) >= 1
+    assert rows["astar"]["tree_limit"] >= len(rows["astar"]["tree"])
     # bfs tối ưu, greedy thì không.
     assert rows["bfs"]["optimal"] is True
     assert rows["greedy"]["optimal"] is False

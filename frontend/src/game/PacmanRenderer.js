@@ -117,6 +117,31 @@ export class PacmanRenderer {
     if (dir) this.pacDir = dir;
   }
 
+  setSearchNode(node, { keepEaten = false, animate = true } = {}) {
+    if (!node) return;
+    const eatenFood = keepEaten && this.food
+      ? new Set(this.map.food.map((p) => this._key(p)).filter((k) => !this.food.has(k)))
+      : null;
+    const eatenPellets = keepEaten && this.pellets
+      ? new Set(this.map.power_pellets.map((p) => this._key(p)).filter((k) => !this.pellets.has(k)))
+      : null;
+
+    this.setPacman(node.pos, node.action || this._dirOf(this.pacman, node.pos));
+    this._prevPacman = node.pos.slice();
+    if (node.food) this.food = new Set(node.food.map((p) => this._key(p)));
+    if (node.power_pellets) this.pellets = new Set(node.power_pellets.map((p) => this._key(p)));
+    if (eatenFood) for (const k of eatenFood) this.food.delete(k);
+    if (eatenPellets) for (const k of eatenPellets) this.pellets.delete(k);
+    if (animate) this._mouthPhase += 0.9;
+  }
+
+  setSearchTimeline(nodes) {
+    if (!nodes || nodes.length === 0) return;
+    nodes.forEach((node, index) => {
+      this.setSearchNode(node, { keepEaten: true, animate: index === nodes.length - 1 });
+    });
+  }
+
   draw() {
     if (!this.map) return;
     const { ctx } = this;
@@ -252,24 +277,31 @@ export class PacmanRenderer {
     }
   }
 
-  // Hiển thị dần các ô visited (minh họa quá trình tìm kiếm), rồi vẽ path.
-  animateSearch(visitedOrder, pathCells, stepDelay, shouldStop) {
+  // Pha duyệt: Pac-man đứng trên node đang được chọn trong cây, không tô màu map.
+  animateSearch(treeNodes, stepDelay, shouldStop, onStep, shouldPause) {
     return new Promise((resolve) => {
       this.visited = [];
       this.path = [];
+      const nodes = (treeNodes || [])
+        .filter((n) => n.expanded_order != null)
+        .sort((a, b) => a.expanded_order - b.expanded_order);
       let i = 0;
-      const batch = Math.max(1, Math.floor(visitedOrder.length / 120));
       const tick = () => {
         if (shouldStop && shouldStop()) return resolve();
-        for (let k = 0; k < batch && i < visitedOrder.length; k++, i++) {
-          this.visited.push(visitedOrder[i]);
+        if (shouldPause && shouldPause()) {
+          setTimeout(tick, 60);
+          return;
+        }
+        if (i < nodes.length) {
+          const node = nodes[i];
+          this.setSearchNode(node, { keepEaten: true });
+          i++;
         }
         this.draw();
-        if (i < visitedOrder.length) {
+        if (onStep) onStep(i);
+        if (i < nodes.length) {
           setTimeout(tick, stepDelay);
         } else {
-          this.path = pathCells.slice();
-          this.draw();
           resolve();
         }
       };
@@ -278,11 +310,15 @@ export class PacmanRenderer {
   }
 
   // Animate Pac-man đi dọc path (mảng [r,c]).
-  animatePath(pathCells, stepDelay, shouldStop) {
+  animatePath(pathCells, stepDelay, shouldStop, shouldPause) {
     return new Promise((resolve) => {
       let i = 0;
       const tick = () => {
         if (shouldStop && shouldStop()) return resolve();
+        if (shouldPause && shouldPause()) {
+          setTimeout(tick, 60);
+          return;
+        }
         if (i >= pathCells.length) return resolve();
         const cur = pathCells[i];
         if (i > 0) {

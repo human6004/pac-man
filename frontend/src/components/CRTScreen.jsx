@@ -5,7 +5,7 @@ import { forwardRef } from "react";
 
 export const CRTScreen = forwardRef(function CRTScreen({ poweron }, ref) {
   return (
-    <div className="crt w-full max-w-[720px] mx-auto p-3">
+    <div className="crt w-full max-w-[480px] 2xl:max-w-[560px] mx-auto xl:mx-0 p-3">
       <div className="crt-sweep" />
       <canvas
         ref={ref}

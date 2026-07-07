@@ -12,36 +12,39 @@ from typing import Optional
 from ..game.problem import SearchProblem
 from ..game.rules import is_goal_static  # noqa: F401 (tiện tham chiếu)
 from ..metrics.counters import SearchMetrics
-from .base import Node, SearchResult, record_node
+from .base import Node, SearchResult, TreeRecorder
 
 
-def _success(node: Node, metrics: SearchMetrics, visited_order, tree) -> SearchResult:
+def _success(node: Node, metrics: SearchMetrics, visited_order, tree: TreeRecorder) -> SearchResult:
     actions, path = node.reconstruct()
     metrics.path_length = len(actions)
     metrics.cost = node.cost
     metrics.found = True
     metrics.stop()
-    return SearchResult(True, actions, path, visited_order, tree, metrics)
+    return SearchResult(True, actions, path, visited_order, tree.nodes, metrics, tree.truncated, tree.limit)
 
 
-def _failure(metrics: SearchMetrics, visited_order, tree) -> SearchResult:
+def _failure(metrics: SearchMetrics, visited_order, tree: TreeRecorder) -> SearchResult:
     metrics.found = False
     metrics.stop()
-    return SearchResult(False, [], [], visited_order, tree, metrics)
+    return SearchResult(False, [], [], visited_order, tree.nodes, metrics, tree.truncated, tree.limit)
 
 
 def bfs(problem: SearchProblem, record_tree: bool = False) -> SearchResult:
     """Breadth-First Search: tối ưu khi mọi bước cùng chi phí."""
     metrics = SearchMetrics().start()
     visited_order = []
-    tree: list = []
+    tree = TreeRecorder(record_tree)
     nid = 0
 
     start = problem.initial_state()
+    start_node = Node(start)
+    tree.created(start_node, 0.0)
     if problem.is_goal(start):
-        return _success(Node(start), metrics, visited_order, tree)
+        tree.expanded(start_node, 0.0)
+        return _success(start_node, metrics, visited_order, tree)
 
-    frontier = deque([Node(start)])
+    frontier = deque([start_node])
     explored = {problem.state_key(start)}
 
     while frontier:
@@ -50,8 +53,7 @@ def bfs(problem: SearchProblem, record_tree: bool = False) -> SearchResult:
         metrics.expand()
         metrics.observe_depth(node.cost)
         visited_order.append(node.state.pacman)
-        if record_tree:
-            record_node(tree, node, 0.0)
+        tree.expanded(node, 0.0)
 
         for action in problem.actions(node.state):
             nxt = problem.result(node.state, action)
@@ -60,13 +62,13 @@ def bfs(problem: SearchProblem, record_tree: bool = False) -> SearchResult:
                 continue
             nid += 1
             child = Node(nxt, node, action, node.cost + problem.step_cost(node.state, action, nxt), nid)
+            tree.created(child, 0.0)
+            metrics.generate()
             if problem.is_goal(nxt):
-                if record_tree:
-                    record_node(tree, child, 0.0)
+                tree.expanded(child, 0.0)
                 return _success(child, metrics, visited_order, tree)
             explored.add(key)
             frontier.append(child)
-            metrics.generate()
 
     return _failure(metrics, visited_order, tree)
 
@@ -75,25 +77,28 @@ def dfs(problem: SearchProblem, depth_limit: Optional[int] = None, record_tree: 
     """Depth-First Search (dùng stack). Không tối ưu; có thể giới hạn độ sâu."""
     metrics = SearchMetrics().start()
     visited_order = []
-    tree: list = []
+    tree = TreeRecorder(record_tree)
     nid = 0
 
     start = problem.initial_state()
-    frontier = [Node(start)]
+    start_node = Node(start)
+    tree.created(start_node, 0.0)
+    frontier = [start_node]
+    frontier_keys = {problem.state_key(start)}
     explored = set()
 
     while frontier:
         metrics.observe_frontier(len(frontier))
         node = frontier.pop()
         key = problem.state_key(node.state)
+        frontier_keys.discard(key)
         if key in explored:
             continue
         explored.add(key)
         metrics.expand()
         metrics.observe_depth(node.cost)
         visited_order.append(node.state.pacman)
-        if record_tree:
-            record_node(tree, node, 0.0)
+        tree.expanded(node, 0.0)
 
         if problem.is_goal(node.state):
             return _success(node, metrics, visited_order, tree)
@@ -103,11 +108,14 @@ def dfs(problem: SearchProblem, depth_limit: Optional[int] = None, record_tree: 
 
         for action in problem.actions(node.state):
             nxt = problem.result(node.state, action)
-            if problem.state_key(nxt) in explored:
+            k = problem.state_key(nxt)
+            if k in explored or k in frontier_keys:
                 continue
             nid += 1
             child = Node(nxt, node, action, node.cost + problem.step_cost(node.state, action, nxt), nid)
+            tree.created(child, 0.0)
             frontier.append(child)
+            frontier_keys.add(k)
             metrics.generate()
 
     return _failure(metrics, visited_order, tree)
@@ -117,11 +125,13 @@ def ucs(problem: SearchProblem, record_tree: bool = False) -> SearchResult:
     """Uniform-Cost Search: tối ưu theo tổng chi phí g(n)."""
     metrics = SearchMetrics().start()
     visited_order = []
-    tree: list = []
+    tree = TreeRecorder(record_tree)
 
     start = problem.initial_state()
     counter = 0
-    frontier = [(0.0, counter, Node(start))]
+    start_node = Node(start)
+    tree.created(start_node, 0.0)
+    frontier = [(0.0, counter, start_node)]
     best_g = {problem.state_key(start): 0.0}
 
     while frontier:
@@ -134,8 +144,7 @@ def ucs(problem: SearchProblem, record_tree: bool = False) -> SearchResult:
         metrics.expand()
         metrics.observe_depth(node.cost)
         visited_order.append(node.state.pacman)
-        if record_tree:
-            record_node(tree, node, 0.0)
+        tree.expanded(node, 0.0)
 
         if problem.is_goal(node.state):
             return _success(node, metrics, visited_order, tree)
@@ -148,6 +157,7 @@ def ucs(problem: SearchProblem, record_tree: bool = False) -> SearchResult:
                 best_g[k] = new_g
                 counter += 1
                 child = Node(nxt, node, action, new_g, counter)
+                tree.created(child, 0.0)
                 heapq.heappush(frontier, (new_g, counter, child))
                 metrics.generate()
 
@@ -160,17 +170,12 @@ def ids(problem: SearchProblem, max_depth: int = 100, record_tree: bool = False)
     Gộp metric của tất cả các vòng lặp để phản ánh tổng công sức tìm kiếm.
     """
     metrics = SearchMetrics().start()
-    visited_order = []
-    tree: list = []
-    counter = [0]
-
-    def dls(node: Node, limit: int, explored: set) -> Optional[Node]:
+    def dls(node: Node, limit: int, explored: set, visited_order: list, tree: TreeRecorder, counter: list) -> Optional[Node]:
         key = problem.state_key(node.state)
         metrics.expand()
         metrics.observe_depth(node.cost)
         visited_order.append(node.state.pacman)
-        if record_tree:
-            record_node(tree, node, 0.0)
+        tree.expanded(node, 0.0)
         if problem.is_goal(node.state):
             return node
         if limit <= 0:
@@ -182,19 +187,23 @@ def ids(problem: SearchProblem, max_depth: int = 100, record_tree: bool = False)
                 continue
             counter[0] += 1
             child = Node(nxt, node, action, node.cost + problem.step_cost(node.state, action, nxt), counter[0])
-            found = dls(child, limit - 1, explored)
+            tree.created(child, 0.0)
+            metrics.generate()
+            found = dls(child, limit - 1, explored, visited_order, tree, counter)
             if found is not None:
                 return found
-            metrics.generate()
         explored.discard(key)
         return None
 
     start = problem.initial_state()
     for depth in range(max_depth + 1):
-        # Mỗi vòng lặp IDS bắt đầu lại từ gốc -> reset cây để chỉ giữ lần cuối.
-        tree.clear()
-        result = dls(Node(start), depth, set())
+        visited_order = []
+        tree = TreeRecorder(record_tree)
+        counter = [0]
+        start_node = Node(start)
+        tree.created(start_node, 0.0)
+        result = dls(start_node, depth, set(), visited_order, tree, counter)
         if result is not None:
             return _success(result, metrics, visited_order, tree)
 
-    return _failure(metrics, visited_order, tree)
+    return _failure(metrics, [], TreeRecorder(record_tree))

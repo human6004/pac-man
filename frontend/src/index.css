@@ -17,8 +17,8 @@
   --color-amber-dim: #7a5500;
   --color-scared: #2121de;
 
-  --font-arcade: "Press Start 2P", monospace;
-  --font-term: "VT323", monospace;
+  --font-arcade: "Segoe UI", "Inter", Arial, sans-serif;
+  --font-term: "Segoe UI", "Inter", Arial, sans-serif;
 }
 
 * { box-sizing: border-box; }
@@ -31,6 +31,8 @@ html, body, #root {
 
 body {
   font-family: var(--font-term);
+  font-size: 16px;
+  line-height: 1.5;
   color: var(--color-amber);
   /* ánh sáng nền hắt từ giữa màn hình */
   background:
@@ -151,12 +153,13 @@ body {
    ============================================================ */
 .marquee-title {
   font-family: var(--font-arcade);
+  font-weight: 900;
   color: var(--color-pac);
   text-shadow:
     0 0 6px var(--color-pac),
     0 0 18px rgba(255, 230, 0, 0.7),
     0 0 34px rgba(255, 176, 0, 0.5);
-  letter-spacing: 2px;
+  letter-spacing: 1px;
 }
 
 /* ============================================================
@@ -164,15 +167,16 @@ body {
    ============================================================ */
 .arcade-btn {
   font-family: var(--font-arcade);
-  font-size: 10px;
-  letter-spacing: 1px;
+  font-size: 14px;
+  font-weight: 800;
+  letter-spacing: 0;
+  line-height: 1.25;
   padding: 12px 10px;
   border-radius: 8px;
   border: 2px solid rgba(255, 255, 255, 0.12);
   color: #0a0a12;
   cursor: pointer;
   transition: transform .06s ease, box-shadow .15s ease, filter .15s ease;
-  text-transform: uppercase;
 }
 .arcade-btn:active { transform: translateY(2px); }
 .arcade-btn:disabled { filter: grayscale(0.7) brightness(0.6); cursor: not-allowed; }
@@ -185,7 +189,7 @@ body {
 .btn-back  { background: var(--color-inky);   box-shadow: 0 4px 0 #0a9c9c, 0 0 14px rgba(0,255,255,.3); }
 
 .tab-btn {
-  font-family: var(--font-term); font-size: 20px; padding: 8px 18px;
+  font-family: var(--font-term); font-size: 15px; font-weight: 700; padding: 8px 18px;
   border-radius: 8px 8px 0 0; border: 1px solid rgba(255,176,0,.3); border-bottom: none;
   background: #14141c; color: var(--color-amber-dim); cursor: pointer;
 }
@@ -211,17 +215,18 @@ body {
 
 .crt-label {
   font-family: var(--font-arcade);
-  font-size: 9px;
-  letter-spacing: 1px;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.2px;
   color: var(--color-inky);
-  text-transform: uppercase;
 }
 
 .crt-select {
   width: 100%;
   font-family: var(--font-term);
-  font-size: 20px;
-  line-height: 1;
+  font-size: 16px;
+  font-weight: 700;
+  line-height: 1.25;
   color: var(--color-amber);
   background: #07070f;
   border: 1px solid rgba(255, 176, 0, 0.35);
@@ -238,7 +243,7 @@ body {
 /* ============================================================
    BẢNG SỐ LIỆU (phosphor amber)
    ============================================================ */
-.stat-grid { font-family: var(--font-term); }
+.stat-grid { font-family: var(--font-term); font-size: 16px; }
 .stat-value {
   color: var(--color-amber);
   text-shadow: 0 0 6px rgba(255, 176, 0, 0.6);
@@ -246,7 +251,7 @@ body {
 }
 .stat-key { color: var(--color-amber-dim); }
 
-table.compare { width: 100%; border-collapse: collapse; font-family: var(--font-term); font-size: 18px; }
+table.compare { width: 100%; border-collapse: collapse; font-family: var(--font-term); font-size: 15px; }
 table.compare th, table.compare td { padding: 5px 8px; border-bottom: 1px solid rgba(255,176,0,.18); text-align: right; }
 table.compare th:first-child, table.compare td:first-child { text-align: left; }
 table.compare thead th { color: var(--color-inky); position: sticky; top: 0; background: #0a0a14; }

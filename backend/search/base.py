@@ -11,6 +11,8 @@ from typing import List, Optional
 from ..game.state import Direction, Position
 from ..metrics.counters import SearchMetrics
 
+TREE_LIMIT = 250
+
 
 @dataclass
 class SearchResult:
@@ -22,6 +24,8 @@ class SearchResult:
     visited_order: List[Position] = field(default_factory=list)  # thứ tự ô được EXPAND (để minh họa)
     tree: List[dict] = field(default_factory=list)               # node đã expand: {id,parent,pos,g,h,f}
     metrics: Optional[SearchMetrics] = None
+    tree_truncated: bool = False
+    tree_limit: int = 0
 
     def to_dict(self) -> dict:
         return {
@@ -30,6 +34,8 @@ class SearchResult:
             "path": [list(p) for p in self.path],
             "visited_order": [list(p) for p in self.visited_order],
             "tree": self.tree,
+            "tree_truncated": self.tree_truncated,
+            "tree_limit": self.tree_limit,
             "stats": self.metrics.to_dict() if self.metrics else None,
         }
 
@@ -59,15 +65,48 @@ class Node:
         return actions, positions
 
 
-def record_node(tree: List[dict], node: "Node", h_val: float) -> None:
-    """Ghi 1 node đã EXPAND vào cây tìm kiếm (cho FE dựng cây g/h/f)."""
-    tree.append(
-        {
+class TreeRecorder:
+    """Ghi cây tìm kiếm cho UI, có cap để thuật toán vẫn giải tiếp khi cây quá lớn."""
+
+    def __init__(self, enabled: bool, limit: int = TREE_LIMIT):
+        self.enabled = enabled
+        self.limit = limit if enabled else 0
+        self.nodes: List[dict] = []
+        self.truncated = False
+        self._by_id: dict[int, dict] = {}
+        self._expanded = 0
+
+    def created(self, node: "Node", h_val: float) -> None:
+        if not self.enabled:
+            return
+        if node.nid in self._by_id:
+            return
+        if len(self.nodes) >= self.limit:
+            self.truncated = True
+            return
+        item = {
             "id": node.nid,
             "parent": node.parent.nid if node.parent else None,
             "pos": list(node.state.pacman),
+            "action": node.action.value if node.action else None,
+            "food_left": len(getattr(node.state, "food", ())),
+            "food": [list(p) for p in sorted(getattr(node.state, "food", ()))],
+            "power_pellets": [list(p) for p in sorted(getattr(node.state, "power_pellets", ()))],
             "g": node.cost,
             "h": h_val,
             "f": node.cost + h_val,
+            "created_order": len(self.nodes),
+            "expanded_order": None,
         }
-    )
+        self.nodes.append(item)
+        self._by_id[node.nid] = item
+
+    def expanded(self, node: "Node", h_val: float) -> None:
+        if not self.enabled:
+            return
+        if node.nid not in self._by_id:
+            self.created(node, h_val)
+        item = self._by_id.get(node.nid)
+        if item and item["expanded_order"] is None:
+            item["expanded_order"] = self._expanded
+            self._expanded += 1

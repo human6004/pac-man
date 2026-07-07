@@ -23,7 +23,7 @@ export function Cabinet({ children }) {
         </p>
       </header>
 
-      <div className="w-full max-w-[1180px]">{children}</div>
+      <div className="w-full max-w-[1800px]">{children}</div>
 
       {/* LEGEND */}
       <footer className="mt-6 flex flex-wrap justify-center gap-x-6 gap-y-2 font-term text-[18px] text-[color:var(--color-amber-dim)]">
