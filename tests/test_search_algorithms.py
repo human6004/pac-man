@@ -1,7 +1,7 @@
 from collections import Counter
 
 from backend.game.layout import load_layout
-from backend.game.problem import EatAllFoodProblem, PathToPointProblem, nearest_food
+from backend.game.problem import EatAllFoodProblem, PathToPointProblem, farthest_food
 from backend.search.heuristics import get_heuristic
 from backend.search.registry import SEARCH_ALGOS, is_informed
 
@@ -13,11 +13,16 @@ def run_static(problem, algo):
     return fn(problem, record_tree=True)
 
 
-def test_path_to_nearest_does_not_expand_same_cell_twice():
+def test_path_to_farthest_does_not_expand_same_cell_twice():
     start = load_layout("small")
-    problem = PathToPointProblem(start, nearest_food(start))
+    problem = PathToPointProblem(start, farthest_food(start))
 
+    # IDS dùng path-checking + lặp DFS nhiều vòng nên CỐ Ý expand lại 1 ô ở các
+    # vòng/nhánh khác nhau — đó là bản chất thuật toán, không phải lỗi. Các thuật
+    # toán graph-search còn lại thì mỗi ô chỉ expand đúng 1 lần.
     for algo in SEARCH_ALGOS:
+        if algo == "ids":
+            continue
         result = run_static(problem, algo)
         expanded = [tuple(pos) for pos in result.visited_order]
         assert len(expanded) == len(set(expanded)), algo

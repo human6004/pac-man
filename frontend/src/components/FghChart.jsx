@@ -2,7 +2,7 @@
 //
 // Mở khi click 1 dòng trong CompareTable. Nhận row có tree (list node
 // {id,parent,pos,g,h,f} theo thứ tự expand). Chỉ có ý nghĩa với bài
-// path_to_nearest (tree không rỗng); eat_all -> báo hướng dẫn.
+// path_to_farthest (tree không rỗng); eat_all -> báo hướng dẫn.
 
 const W = 520;
 const H = 220;
@@ -24,7 +24,7 @@ export function FghChart({ row, algoInfo }) {
       <div className="crt-panel p-4">
         <h2 className="crt-label mb-2">◢ f / g / h — {name}</h2>
         <p className="crt-label text-[13px]">
-          Chọn bài "Đi tới food gần nhất" để xem biểu đồ f/g/h (bài "ăn hết food" không dựng cây).
+          Chọn bài "Đi tới food xa nhất" để xem biểu đồ f/g/h (bài "ăn hết food" không dựng cây).
         </p>
       </div>
     );
@@ -45,21 +45,21 @@ export function FghChart({ row, algoInfo }) {
           const y = sy(v, max);
           return (
             <g key={v}>
-              <line x1={PAD.l} y1={y} x2={W - PAD.r} y2={y} stroke="rgba(255,255,255,0.08)" />
-              <text x={PAD.l - 6} y={y + 4} textAnchor="end" fill="#9aa" fontSize="10">{v}</text>
+              <line x1={PAD.l} y1={y} x2={W - PAD.r} y2={y} stroke="rgba(255,176,0,0.1)" />
+              <text x={PAD.l - 6} y={y + 4} textAnchor="end" fill="var(--color-amber-dim)" fontSize="10">{v}</text>
             </g>
           );
         })}
-        <path d={line(f)} fill="none" stroke="#34d399" strokeWidth="2" />
-        <path d={line(g)} fill="none" stroke="#8b5cf6" strokeWidth="2" />
-        <path d={line(h)} fill="none" stroke="#60a5fa" strokeWidth="2" />
-        <text x={PAD.l} y={H - 8} fill="#9aa" fontSize="10">node #0</text>
-        <text x={W - PAD.r} y={H - 8} textAnchor="end" fill="#9aa" fontSize="10">#{tree.length - 1}</text>
+        <path d={line(f)} fill="none" stroke="var(--color-f)" strokeWidth="2" />
+        <path d={line(g)} fill="none" stroke="var(--color-g)" strokeWidth="2" />
+        <path d={line(h)} fill="none" stroke="var(--color-h)" strokeWidth="2" />
+        <text x={PAD.l} y={H - 8} fill="var(--color-amber-dim)" fontSize="10">node #0</text>
+        <text x={W - PAD.r} y={H - 8} textAnchor="end" fill="var(--color-amber-dim)" fontSize="10">#{tree.length - 1}</text>
       </svg>
-      <div className="crt-label text-[12px] flex gap-4 mt-1">
-        <span style={{ color: "#8b5cf6" }}>● g (chi phí)</span>
-        <span style={{ color: "#60a5fa" }}>● h (heuristic)</span>
-        <span style={{ color: "#34d399" }}>● f = g + h</span>
+      <div className="crt-label text-[12px] flex flex-wrap gap-4 mt-1 normal-case">
+        <span style={{ color: "var(--color-g)" }}>● g = chi phí từ start</span>
+        <span style={{ color: "var(--color-h)" }}>● h = ước lượng tới đích</span>
+        <span style={{ color: "var(--color-f)" }}>● f = g + h</span>
       </div>
     </div>
   );

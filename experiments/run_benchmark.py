@@ -22,7 +22,7 @@ except (AttributeError, ValueError):
     pass
 
 from backend.game.layout import list_maps, load_layout  # noqa: E402
-from backend.game.problem import EatAllFoodProblem, PathToPointProblem, nearest_food  # noqa: E402
+from backend.game.problem import EatAllFoodProblem, PathToPointProblem, farthest_food  # noqa: E402
 from backend.search.heuristics import get_heuristic  # noqa: E402
 from backend.search.registry import SEARCH_ALGOS, SEARCH_INFO, is_informed  # noqa: E402
 
@@ -31,13 +31,13 @@ OUT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "results.csv")
 # Heuristic mặc định theo loại bài toán.
 HEURISTIC_FOR = {
     "eat_all": "farthest_food",
-    "path_to_nearest": "manhattan",
+    "path_to_farthest": "manhattan",
 }
 
 
 def build_problem(start, kind):
-    if kind == "path_to_nearest":
-        goal = nearest_food(start)
+    if kind == "path_to_farthest":
+        goal = farthest_food(start)
         return PathToPointProblem(start, goal) if goal else None
     return EatAllFoodProblem(start)
 
@@ -82,7 +82,7 @@ def main():
     EAT_ALL_MAPS = {"small"}
 
     for map_name in maps:
-        problems = ["path_to_nearest"]
+        problems = ["path_to_farthest"]
         if map_name in EAT_ALL_MAPS:
             problems.append("eat_all")
         for problem_kind in problems:

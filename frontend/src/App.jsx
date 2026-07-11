@@ -11,6 +11,7 @@ import { Cabinet } from "./components/Cabinet";
 import { CRTScreen } from "./components/CRTScreen";
 import { ControlDeck } from "./components/ControlDeck";
 import { StatsPanel } from "./components/StatsPanel";
+import { ProblemModelPanel } from "./components/ProblemModelPanel";
 import { CompareTable } from "./components/CompareTable";
 import { ComparisonView } from "./components/ComparisonView";
 import { CompareCharts } from "./components/CompareCharts";
@@ -28,7 +29,7 @@ const DEFAULT_CFG = {
   mode: "static",
   problem: "eat_all",
   algorithm: "astar",
-  heuristic: "manhattan",
+  heuristic: "farthest_food", // khớp bài eat_all; path_to_farthest sẽ tự đổi sang manhattan
   advAlgorithm: "alphabeta",
   depth: 3,
   speed: 12,
@@ -66,16 +67,23 @@ export default function App() {
     const r = new PacmanRenderer(canvas);
     rendererRef.current = r;
 
+    // Tôn trọng "giảm chuyển động": bỏ particle + screen-shake (chỉ vẽ game).
+    const reduceMotion = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+
     let raf;
     const loop = () => {
-      effects.update();
-      const [dx, dy] = effects.shakeOffset();
       const ctx = r.ctx;
-      ctx.save();
-      ctx.translate(dx, dy);
-      r.draw();
-      effects.draw(ctx);
-      ctx.restore();
+      if (reduceMotion) {
+        r.draw();
+      } else {
+        effects.update();
+        const [dx, dy] = effects.shakeOffset();
+        ctx.save();
+        ctx.translate(dx, dy);
+        r.draw();
+        effects.draw(ctx);
+        ctx.restore();
+      }
       raf = requestAnimationFrame(loop);
     };
     raf = requestAnimationFrame(loop);
@@ -124,6 +132,27 @@ export default function App() {
     runner.compare(cfg);
   }, [runner, cfg]);
 
+  // Props chung cho mọi lần render ControlDeck (tránh lặp ~15 dòng mỗi chỗ).
+  const deckProps = {
+    tab,
+    maps: meta.maps,
+    algorithms: meta.algorithms,
+    heuristics: meta.heuristics,
+    algoInfo: meta.algoInfo,
+    cfg,
+    setCfg,
+    busy: runner.busy,
+    paused: runner.paused,
+    soundOn,
+    onToggleSound: () => setSoundOn((s) => !s),
+    onRun: handleRun,
+    onPause: runner.pause,
+    onStep: handleStep,
+    onStepBack: handleStepBack,
+    onReset: runner.reset,
+    onCompare: handleCompare,
+  };
+
   const backendError = (meta.error || mapError) && (
     <div className="crt-panel p-3 font-term text-[18px]" style={{ color: "var(--color-clyde)" }}>
       {meta.error
@@ -152,63 +181,31 @@ export default function App() {
 
       {backendError}
 
+      {/* Tab Play: đọc từ trên xuống theo luồng demo — cấu hình → chạy → xem kết quả.
+          Cột trái: cấu hình + màn hình + nút chạy. Cột phải: cây duyệt + số liệu. */}
       <div className={tab === "play" ? "flex flex-col gap-4" : "hidden"}>
-        <div className="grid gap-4 xl:grid-cols-[minmax(400px,520px)_minmax(560px,1fr)] items-start">
+        {/* Hàng chính: [màn hình + nút chạy] | [cây duyệt từng bước] cạnh nhau
+            -> vừa bấm Bước tiếp vừa theo dõi cây mọc. */}
+        <div className="grid gap-4 xl:grid-cols-[minmax(400px,540px)_minmax(560px,1fr)] items-start">
           <div className="flex flex-col gap-4">
             <div ref={screenWrapRef}>
               <CRTScreen ref={canvasRef} poweron={poweron} />
             </div>
-            <ControlDeck
-              tab={tab}
-              section="run"
-              maps={meta.maps}
-              algorithms={meta.algorithms}
-              heuristics={meta.heuristics}
-              algoInfo={meta.algoInfo}
-              cfg={cfg}
-              setCfg={setCfg}
-              busy={runner.busy}
-              paused={runner.paused}
-              soundOn={soundOn}
-              onToggleSound={() => setSoundOn((s) => !s)}
-              onRun={handleRun}
-              onPause={runner.pause}
-              onStep={handleStep}
-              onStepBack={handleStepBack}
-              onReset={runner.reset}
-              onCompare={handleCompare}
-            />
+            <ControlDeck {...deckProps} section="run" />
           </div>
-          <div className="flex flex-col gap-4">
-            <SearchTreePanel
-              tree={runner.tree}
-              active={cfg.mode === "static"}
-              step={runner.searchStep}
-              treeMeta={runner.treeMeta}
-            />
-          </div>
-        </div>
-        <div className="grid gap-4 xl:grid-cols-[minmax(560px,1fr)_minmax(320px,420px)] items-start">
-          <ControlDeck
-            tab={tab}
-            section="settings"
-            maps={meta.maps}
-            algorithms={meta.algorithms}
-            heuristics={meta.heuristics}
-            algoInfo={meta.algoInfo}
-            cfg={cfg}
-            setCfg={setCfg}
-            busy={runner.busy}
-            paused={runner.paused}
-            soundOn={soundOn}
-            onToggleSound={() => setSoundOn((s) => !s)}
-            onRun={handleRun}
-            onPause={runner.pause}
-            onStep={handleStep}
-            onStepBack={handleStepBack}
-            onReset={runner.reset}
-            onCompare={handleCompare}
+          <SearchTreePanel
+            tree={runner.tree}
+            active={cfg.mode === "static"}
+            step={runner.searchStep}
+            treeMeta={runner.treeMeta}
           />
+        </div>
+        {/* Hàng dưới: [cấu hình + mô hình bài toán] | [số liệu] */}
+        <div className="grid gap-4 xl:grid-cols-[minmax(400px,540px)_minmax(560px,1fr)] items-start">
+          <div className="flex flex-col gap-4">
+            <ControlDeck {...deckProps} section="settings" />
+            <ProblemModelPanel mode={cfg.mode} problem={cfg.problem} />
+          </div>
           <StatsPanel
             status={runner.status}
             stats={runner.stats}
@@ -244,25 +241,7 @@ export default function App() {
           </div>
 
           <div className="order-1 lg:order-2">
-            <ControlDeck
-              tab={tab}
-              maps={meta.maps}
-              algorithms={meta.algorithms}
-              heuristics={meta.heuristics}
-              algoInfo={meta.algoInfo}
-              cfg={cfg}
-              setCfg={setCfg}
-              busy={runner.busy}
-              paused={runner.paused}
-              soundOn={soundOn}
-              onToggleSound={() => setSoundOn((s) => !s)}
-              onRun={handleRun}
-              onPause={runner.pause}
-              onStep={handleStep}
-              onStepBack={handleStepBack}
-              onReset={runner.reset}
-              onCompare={handleCompare}
-            />
+            <ControlDeck {...deckProps} />
           </div>
         </div>
       )}

@@ -12,6 +12,13 @@ const ADV_ALGOS = [
 
 const GROUP_LABEL = { uninformed: "Tìm kiếm mù", informed: "Tìm kiếm có thông tin" };
 
+// Heuristic hợp với từng bài toán. Chọn sai nhóm thì heuristic trả 0 -> A* suy
+// biến thành UCS, nên khi đổi bài toán ta tự đặt heuristic mặc định phù hợp.
+function problemPatch(problem) {
+  const heuristic = problem === "eat_all" ? "farthest_food" : "manhattan";
+  return { problem, heuristic };
+}
+
 export function ControlDeck({
   tab = "play",
   section = "all",
@@ -60,6 +67,8 @@ export function ControlDeck({
             }}
             onClick={onToggleSound}
             title="Bật/tắt âm thanh"
+            aria-label={soundOn ? "Tắt âm thanh" : "Bật âm thanh"}
+            aria-pressed={soundOn}
           >
             {soundOn ? "🔊 ON" : "🔇 OFF"}
           </button>
@@ -73,9 +82,9 @@ export function ControlDeck({
         </Field>
         <Field label="Bài toán">
           <select className="crt-select" value={cfg.problem} disabled={busy}
-            onChange={(e) => set({ problem: e.target.value }, true)}>
+            onChange={(e) => set(problemPatch(e.target.value), true)}>
             <option value="eat_all">Ăn hết food</option>
-            <option value="path_to_nearest">Đi tới food gần nhất</option>
+            <option value="path_to_farthest">Đi tới food xa nhất</option>
           </select>
         </Field>
         <Field label="Heuristic (cho A*/Greedy)">
@@ -178,6 +187,8 @@ export function ControlDeck({
           }}
           onClick={onToggleSound}
           title="Bật/tắt âm thanh"
+          aria-label={soundOn ? "Tắt âm thanh" : "Bật âm thanh"}
+          aria-pressed={soundOn}
         >
           {soundOn ? "🔊 ON" : "🔇 OFF"}
         </button>
@@ -202,9 +213,9 @@ export function ControlDeck({
           <>
             <Field label="Bài toán">
               <select className="crt-select" value={cfg.problem} disabled={busy}
-                onChange={(e) => set({ problem: e.target.value }, true)}>
+                onChange={(e) => set(problemPatch(e.target.value), true)}>
                 <option value="eat_all">Ăn hết food</option>
-                <option value="path_to_nearest">Đi tới food gần nhất</option>
+                <option value="path_to_farthest">Đi tới food xa nhất</option>
               </select>
             </Field>
             <Field label="Thuật toán">

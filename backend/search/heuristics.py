@@ -39,9 +39,10 @@ def goal_manhattan(state: GameState, problem: SearchProblem) -> float:
 def nearest_food_dist(state: GameState, problem: SearchProblem) -> float:
     """Khoảng cách Manhattan tới food GẦN nhất.
 
-    Dùng cho EatAllFoodProblem. KHÔNG admissible cho mục tiêu "ăn hết" (đánh giá
-    thấp hơn thực tế nên vẫn ok về tính chấp nhận được, nhưng yếu) — phù hợp làm
-    heuristic của Greedy hoặc A* "nhanh".
+    Dùng cho EatAllFoodProblem. ADMISSIBLE (để ăn hết food thì ít nhất phải đi tới
+    được miếng gần nhất, nên chi phí thực >= khoảng cách này) nhưng YẾU — đánh giá
+    thấp hơn nhiều so với thực tế, nên A* với nó vẫn tối ưu nhưng expand nhiều;
+    phù hợp làm heuristic của Greedy hoặc A* "nhanh".
     """
     if not state.food:
         return 0.0

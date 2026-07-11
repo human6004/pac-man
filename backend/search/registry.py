@@ -44,9 +44,12 @@ ADVERSARIAL_ALGOS: Dict[str, Callable] = {
 }
 
 
-# Thuật toán đảm bảo tối ưu (cost đều = 1). A* tối ưu khi heuristic admissible;
-# các heuristic trong dự án đều admissible nên coi A* là tối ưu.
-OPTIMAL_ALGOS = {"bfs", "ucs", "ids", "astar"}
+# Thuật toán luôn tối ưu (cost đều = 1), không phụ thuộc heuristic.
+OPTIMAL_ALGOS = {"bfs", "ucs", "ids"}
+
+# A* chỉ tối ưu khi heuristic ADMISSIBLE. Liệt kê tường minh để nếu sau này thêm
+# heuristic non-admissible thì cột "Optimal" không dán nhãn sai.
+ADMISSIBLE_HEURISTICS = {"null", "manhattan", "nearest_food", "farthest_food", "food_count"}
 
 
 def is_informed(algo: str) -> bool:
@@ -54,7 +57,12 @@ def is_informed(algo: str) -> bool:
 
 
 def is_optimal(algo: str, heuristic: str = "") -> bool:
-    """Thuật toán có đảm bảo lời giải tối ưu không (cột Optimal trong bảng)."""
+    """Thuật toán có đảm bảo lời giải tối ưu không (cột Optimal trong bảng).
+
+    A* tối ưu <=> heuristic admissible; Greedy không bao giờ tối ưu.
+    """
+    if algo == "astar":
+        return heuristic in ADMISSIBLE_HEURISTICS
     return algo in OPTIMAL_ALGOS
 
 

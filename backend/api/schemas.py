@@ -10,7 +10,7 @@ class SolveRequest(BaseModel):
     map: str = Field("small", description="Tên bản đồ trong thư mục maps/")
     algorithm: str = Field("bfs", description="bfs|dfs|ucs|ids|greedy|astar")
     heuristic: str = Field("manhattan", description="Tên heuristic (chỉ dùng cho greedy/astar)")
-    problem: str = Field("eat_all", description="eat_all | path_to_nearest")
+    problem: str = Field("eat_all", description="eat_all | path_to_farthest")
 
 
 class CompareRequest(BaseModel):

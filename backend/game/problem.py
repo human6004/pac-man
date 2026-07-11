@@ -99,3 +99,17 @@ def nearest_food(state: GameState) -> Position | None:
         return None
     pr, pc = state.pacman
     return min(state.food, key=lambda f: abs(f[0] - pr) + abs(f[1] - pc))
+
+
+def farthest_food(state: GameState) -> Position | None:
+    """Trả về ô food XA nhất theo Manhattan.
+
+    Dùng cho bài minh họa "đi tới 1 ô đích": food xa nhất tạo đường đi dài, nhờ đó
+    phân biệt rõ đặc tính các thuật toán (BFS/UCS/A* tối ưu, DFS/Greedy có thể dài hơn).
+    Ngược lại food gần nhất trên các bản đồ này thường kề ngay Pac-man -> mọi thuật
+    toán chỉ đi 1 bước, không so sánh được gì.
+    """
+    if not state.food:
+        return None
+    pr, pc = state.pacman
+    return max(state.food, key=lambda f: abs(f[0] - pr) + abs(f[1] - pc))

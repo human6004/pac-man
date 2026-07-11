@@ -41,7 +41,12 @@ export function CompareTable({ rows, algoInfo, onSelectAlgo, selectedAlgo }) {
               {COLS.map(([label]) => (
                 <th key={label}>{label}</th>
               ))}
-              <th>Optimal</th>
+              <th
+                className="cursor-help"
+                title="Tối ưu = đường đi có tổng chi phí nhỏ nhất. BFS/UCS/IDS luôn tối ưu; A* tối ưu khi heuristic admissible; DFS/Greedy không đảm bảo."
+              >
+                Optimal
+              </th>
             </tr>
           </thead>
           <tbody>

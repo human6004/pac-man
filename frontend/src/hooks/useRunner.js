@@ -12,6 +12,7 @@ import { audio } from "../sound/audio";
 import { effects } from "../game/effects";
 
 const EMPTY_TREE_META = { truncated: false, limit: 0 };
+const PAUSE_POLL_MS = 60; // nhịp kiểm tra lại khi animation đang tạm dừng
 
 function staticKey(cfg) {
   return JSON.stringify({
@@ -146,7 +147,7 @@ export function useRunner(rendererRef, onLose) {
         const tick = () => {
           if (shouldStop()) return resolve();
           if (pausedRef.current) {
-            setTimeout(tick, 60);
+            setTimeout(tick, PAUSE_POLL_MS);
             return;
           }
           if (i >= frames.length) return resolve();
@@ -309,6 +310,7 @@ export function useRunner(rendererRef, onLose) {
 
   const stepStatic = useCallback(
     async (cfg, dir = 1) => {
+      if (runningRef.current) return; // đang chạy auto -> không cho step chồng
       const r = rendererRef.current;
       const key = staticKey(cfg);
       if (lastSolveKeyRef.current && lastSolveKeyRef.current !== key) {
@@ -344,6 +346,9 @@ export function useRunner(rendererRef, onLose) {
           }
           setStats(result.stats);
           renderStaticAt(1);
+        } catch (e) {
+          setStatus("Lỗi: " + e.message);
+          console.error(e);
         } finally {
           setBusy(false);
         }
@@ -369,6 +374,7 @@ export function useRunner(rendererRef, onLose) {
 
   const stepAdversarial = useCallback(
     async (cfg, dir = 1) => {
+      if (runningRef.current) return; // đang chạy auto -> không cho step chồng
       const r = rendererRef.current;
       const key = adversarialKey(cfg);
       if (lastFramesKeyRef.current && lastFramesKeyRef.current !== key) {
@@ -393,6 +399,9 @@ export function useRunner(rendererRef, onLose) {
           r.setState(result.frames[0]);
           r.draw();
           setStatus(`Frame 1/${result.frames.length} — bấm Bước tiếp (ma đi theo)`);
+        } catch (e) {
+          setStatus("Lỗi: " + e.message);
+          console.error(e);
         } finally {
           setBusy(false);
         }

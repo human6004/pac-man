@@ -18,7 +18,7 @@ from fastapi.middleware.cors import CORSMiddleware
 import random
 
 from ..game.layout import list_maps, load_layout
-from ..game.problem import EatAllFoodProblem, PathToPointProblem, nearest_food
+from ..game.problem import EatAllFoodProblem, PathToPointProblem, farthest_food
 from ..game.rules import ghost_legal_actions, is_terminal, result_ghost, result_pacman
 from ..game.state import GameState
 from ..search.heuristics import get_heuristic
@@ -73,10 +73,10 @@ def serialize_map(s: GameState) -> Dict:
 
 
 def build_problem(start: GameState, kind: str):
-    if kind == "path_to_nearest":
-        goal = nearest_food(start)
+    if kind == "path_to_farthest":
+        goal = farthest_food(start)
         if goal is None:
-            raise HTTPException(400, "Bản đồ không có food cho bài toán path_to_nearest.")
+            raise HTTPException(400, "Bản đồ không có food cho bài toán path_to_farthest.")
         return PathToPointProblem(start, goal)
     return EatAllFoodProblem(start)
 
@@ -86,6 +86,22 @@ def build_problem(start: GameState, kind: str):
 EAT_ALL_MAX_FOOD = 25
 # IDS trên eat_all rất tốn node (cây lặp lại) -> chặn để khỏi đợi lâu.
 EAT_ALL_SLOW_ALGOS = {"ids"}
+
+# Heuristic phải khớp loại bài toán, nếu không nó trả 0 và A*/Greedy suy biến:
+#   - goal_manhattan (name "manhattan") chỉ có tác dụng cho path_to_farthest.
+#   - các heuristic dựa trên food chỉ có tác dụng cho eat_all.
+# Nếu người dùng chọn heuristic trả 0 cho bài toán đang chạy, tự thay bằng
+# heuristic mặc định hợp lý để A* thật sự dùng thông tin (không lặng lẽ = UCS).
+_ZERO_FOR_EAT_ALL = {"manhattan", "null"}
+_ZERO_FOR_PATH = {"nearest_food", "farthest_food", "food_count"}
+
+
+def resolve_heuristic(heuristic_name: str, problem_kind: str) -> str:
+    if problem_kind == "eat_all" and heuristic_name in _ZERO_FOR_EAT_ALL:
+        return "farthest_food"  # admissible -> A* tối ưu và expand ít hơn UCS
+    if problem_kind == "path_to_farthest" and heuristic_name in _ZERO_FOR_PATH:
+        return "manhattan"
+    return heuristic_name
 
 
 def run_static(map_name: str, algo: str, heuristic_name: str, problem_kind: str):
@@ -105,7 +121,7 @@ def run_static(map_name: str, algo: str, heuristic_name: str, problem_kind: str)
             f"Bản đồ '{map_name}' có {start.num_food} food -> bài 'ăn hết food' "
             f"có không gian trạng thái ~2^{start.num_food}, không thể giải kịp. "
             f"Hãy chọn bản đồ nhỏ (small) cho 'ăn hết food', hoặc dùng bài "
-            f"'đi tới food gần nhất' cho bản đồ lớn.",
+            f"'đi tới food xa nhất' cho bản đồ lớn.",
         )
 
     if problem_kind == "eat_all" and algo in EAT_ALL_SLOW_ALGOS:
@@ -114,14 +130,14 @@ def run_static(map_name: str, algo: str, heuristic_name: str, problem_kind: str)
             f"Thuật toán '{algo}' chạy bài 'ăn hết food' rất chậm (lặp lại nhiều "
             f"lần nên expand hàng trăm nghìn node). Hãy chọn thuật toán khác "
             f"(bfs/ucs/astar) cho 'ăn hết food', hoặc dùng '{algo}' với bài "
-            f"'đi tới food gần nhất'.",
+            f"'đi tới food xa nhất'.",
         )
 
     problem = build_problem(start, problem_kind)
     fn = SEARCH_ALGOS[algo]
 
     if is_informed(algo):
-        h = get_heuristic(heuristic_name)
+        h = get_heuristic(resolve_heuristic(heuristic_name, problem_kind))
         result = fn(problem, h, record_tree=record_tree)
     else:
         result = fn(problem, record_tree=record_tree)
@@ -157,7 +173,7 @@ def solve(req: SolveRequest):
     return {
         "map": serialize_map(start),
         "algorithm": req.algorithm,
-        "heuristic": req.heuristic if is_informed(req.algorithm) else None,
+        "heuristic": resolve_heuristic(req.heuristic, req.problem) if is_informed(req.algorithm) else None,
         **result.to_dict(),
     }
 
@@ -175,7 +191,7 @@ def compare(req: CompareRequest):
             {
                 "algorithm": algo,
                 "found": result.found,
-                "optimal": is_optimal(algo, req.heuristic),
+                "optimal": is_optimal(algo, resolve_heuristic(req.heuristic, req.problem)),
                 "path": [list(p) for p in result.path],
                 "visited_order": [list(p) for p in result.visited_order],
                 "tree": result.tree,

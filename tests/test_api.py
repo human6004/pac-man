@@ -41,10 +41,10 @@ def test_get_unknown_map_404():
     assert r.status_code == 404
 
 
-def test_solve_bfs_path_to_nearest():
+def test_solve_bfs_path_to_farthest():
     r = client.post(
         "/solve",
-        json={"map": "small", "algorithm": "bfs", "problem": "path_to_nearest"},
+        json={"map": "small", "algorithm": "bfs", "problem": "path_to_farthest"},
     )
     assert r.status_code == 200
     data = r.json()
@@ -96,10 +96,10 @@ def test_compare_returns_rows():
         assert row["stats"]["memory_kb"] >= 0
 
 
-def test_solve_path_to_nearest_returns_tree():
+def test_solve_path_to_farthest_returns_tree():
     r = client.post(
         "/solve",
-        json={"map": "small", "algorithm": "astar", "problem": "path_to_nearest"},
+        json={"map": "small", "algorithm": "astar", "problem": "path_to_farthest"},
     )
     assert r.status_code == 200
     tree = r.json()["tree"]
@@ -127,13 +127,13 @@ def test_solve_eat_all_returns_capped_tree():
         assert {"created_order", "expanded_order", "action"} <= set(node)
 
 
-def test_compare_path_to_nearest_has_tree_and_optimal():
+def test_compare_path_to_farthest_has_tree_and_optimal():
     r = client.post(
         "/compare",
         json={
             "map": "small",
             "algorithms": ["astar", "greedy", "bfs"],
-            "problem": "path_to_nearest",
+            "problem": "path_to_farthest",
         },
     )
     assert r.status_code == 200

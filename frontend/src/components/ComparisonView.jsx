@@ -9,11 +9,13 @@ import { SearchTreePreview } from "./SearchTreePanel";
 
 function MiniMaze({ row, mapData, algoInfo }) {
   const canvasRef = useRef(null);
+  const rendererRef = useRef(null);
 
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas || !mapData) return;
-    const r = new PacmanRenderer(canvas);
+    // Tạo renderer 1 lần cho canvas này, các lần sau chỉ vẽ lại.
+    const r = rendererRef.current || (rendererRef.current = new PacmanRenderer(canvas));
     r.setMap(mapData);
     r.visited = (row.visited_order || []).slice();
     r.path = (row.path || []).slice();

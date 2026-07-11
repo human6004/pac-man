@@ -123,9 +123,9 @@ function NodeCard({ node, state }) {
         food left: {node.food_left ?? "?"}
       </text>
       <text x={NODE_W / 2} y="90" textAnchor="middle" fontSize="13" fontFamily="var(--font-term)" fill="#cbd0e6">
-        <tspan fill="#8b5cf6">g={fmt(node.g)}</tspan>{"  "}
-        <tspan fill="#60a5fa">h={fmt(node.h)}</tspan>{"  "}
-        <tspan fill="#34d399">f={fmt(node.f)}</tspan>
+        <tspan fill="var(--color-g)">g={fmt(node.g)}</tspan>{"  "}
+        <tspan fill="var(--color-h)">h={fmt(node.h)}</tspan>{"  "}
+        <tspan fill="var(--color-f)">f={fmt(node.f)}</tspan>
       </text>
     </g>
   );
@@ -301,8 +301,36 @@ export function SearchTreePanel({ tree, active, step, treeMeta }) {
         <>
           <TreeCounters tree={tree} step={step} />
           <TreeSvg tree={tree} step={step} />
+          <TreeLegend />
         </>
       )}
+    </div>
+  );
+}
+
+// Chú giải ý nghĩa màu node + g/h/f cho người xem không chuyên.
+function LegendItem({ color, children }) {
+  return (
+    <span className="inline-flex items-center gap-1.5">
+      <i className="inline-block w-2.5 h-2.5 rounded-sm" style={{ background: color }} />
+      {children}
+    </span>
+  );
+}
+
+function TreeLegend() {
+  return (
+    <div className="mt-3 flex flex-col gap-1.5 font-term text-[12px] text-[color:var(--color-amber-dim)]">
+      <div className="flex flex-wrap gap-x-4 gap-y-1">
+        <LegendItem color="var(--color-maze)">OPEN — trong frontier (chờ xét)</LegendItem>
+        <LegendItem color="#FF3B3B">CURRENT — đang được expand</LegendItem>
+        <LegendItem color="#8891b8">CLOSED — đã expand xong</LegendItem>
+      </div>
+      <div className="flex flex-wrap gap-x-4 gap-y-1">
+        <span style={{ color: "var(--color-g)" }}>g = chi phí từ start</span>
+        <span style={{ color: "var(--color-h)" }}>h = ước lượng tới đích</span>
+        <span style={{ color: "var(--color-f)" }}>f = g + h</span>
+      </div>
     </div>
   );
 }

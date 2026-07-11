@@ -19,6 +19,7 @@ const PELLET_OFF = "#9c8e2a";
 const PAC_COLOR = "#FFE600";
 const VISITED_RGB = "0, 255, 255"; // inky cyan cho lớp "đã duyệt"
 const PATH_COLOR = "rgba(255, 230, 0, 0.85)";
+const PAUSE_POLL_MS = 60; // nhịp kiểm tra lại khi animation đang tạm dừng
 
 export class PacmanRenderer {
   constructor(canvas) {
@@ -289,7 +290,7 @@ export class PacmanRenderer {
       const tick = () => {
         if (shouldStop && shouldStop()) return resolve();
         if (shouldPause && shouldPause()) {
-          setTimeout(tick, 60);
+          setTimeout(tick, PAUSE_POLL_MS);
           return;
         }
         if (i < nodes.length) {
@@ -316,7 +317,7 @@ export class PacmanRenderer {
       const tick = () => {
         if (shouldStop && shouldStop()) return resolve();
         if (shouldPause && shouldPause()) {
-          setTimeout(tick, 60);
+          setTimeout(tick, PAUSE_POLL_MS);
           return;
         }
         if (i >= pathCells.length) return resolve();

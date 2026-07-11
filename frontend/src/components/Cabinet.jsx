@@ -15,10 +15,10 @@ export function Cabinet({ children }) {
     <div className="min-h-screen px-4 py-6 flex flex-col items-center">
       {/* MARQUEE */}
       <header className="text-center mb-6 select-none">
-        <h1 className="marquee-title text-[clamp(18px,3.4vw,34px)]">
-          ◆ PAC-MAN A.I. SEARCH ◆
+        <h1 className="marquee-title text-[clamp(13px,2.6vw,26px)]">
+          PAC-MAN A.I. SEARCH
         </h1>
-        <p className="font-term text-[color:var(--color-inky)] text-[20px] mt-1 text-glow-soft">
+        <p className="font-term text-[color:var(--color-inky)] text-[15px] sm:text-[18px] mt-2 text-glow-soft">
           tìm kiếm mù · có thông tin · đối kháng
         </p>
       </header>
