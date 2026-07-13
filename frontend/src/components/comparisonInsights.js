@@ -1,23 +1,23 @@
 export const ALGORITHM_GUIDE = {
   bfs: {
-    strategy: "Duyệt theo từng lớp từ gần đến xa.",
-    guarantee: "Đầy đủ và tối ưu khi mỗi bước có cùng chi phí.",
+    strategy: "Explores layer by layer from near to far.",
+    guarantee: "Complete and optimal when every step has equal cost.",
   },
   dfs: {
-    strategy: "Đi sâu một nhánh trước khi quay lui.",
-    guarantee: "Tiết kiệm frontier nhưng không đảm bảo đường tối ưu.",
+    strategy: "Goes deep down one branch before backtracking.",
+    guarantee: "Saves frontier memory but does not guarantee an optimal path.",
   },
   ucs: {
-    strategy: "Luôn mở trạng thái có tổng chi phí g nhỏ nhất.",
-    guarantee: "Đầy đủ và tối ưu khi chi phí bước dương.",
+    strategy: "Always expands the state with the lowest total cost g.",
+    guarantee: "Complete and optimal when step costs are positive.",
   },
   greedy: {
-    strategy: "Ưu tiên trạng thái có ước lượng h nhỏ nhất.",
-    guarantee: "Thường đi nhanh nhưng không đảm bảo đường tối ưu.",
+    strategy: "Prioritizes the state with the smallest estimate h.",
+    guarantee: "Usually fast but does not guarantee an optimal path.",
   },
   astar: {
-    strategy: "Cân bằng chi phí đã đi g và ước lượng còn lại h.",
-    guarantee: "Tối ưu khi heuristic chấp nhận được.",
+    strategy: "Balances cost-so-far g and remaining estimate h.",
+    guarantee: "Optimal when the heuristic is admissible.",
   },
 };
 
@@ -41,8 +41,8 @@ function minimum(rows, key, algoInfo, foundOnly = false) {
 export function formatAlgorithmNames(names) {
   if (!names?.length) return "";
   if (names.length === 1) return names[0];
-  if (names.length === 2) return names.join(" và ");
-  return `${names.slice(0, -1).join(", ")} và ${names.at(-1)}`;
+  if (names.length === 2) return names.join(" and ");
+  return `${names.slice(0, -1).join(", ")} and ${names.at(-1)}`;
 }
 
 export function buildComparisonInsights(rows, algoInfo = {}) {
@@ -58,7 +58,7 @@ export function buildComparisonInsights(rows, algoInfo = {}) {
     return {
       validCount: 0,
       metrics: { nodes: null, frontier: null, cost: null, time: null },
-      summary: "Không có kết quả hợp lệ để so sánh.",
+      summary: "No valid results to compare.",
       optimal,
       notFound,
       errors,
@@ -74,15 +74,15 @@ export function buildComparisonInsights(rows, algoInfo = {}) {
   if (metrics.time) metrics.time.reference = true;
 
   const summary = [];
-  if (metrics.nodes) summary.push(`${formatAlgorithmNames(metrics.nodes.algorithms)} mở ít node nhất (${metrics.nodes.value}).`);
-  if (metrics.frontier) summary.push(`${formatAlgorithmNames(metrics.frontier.algorithms)} dùng frontier đỉnh thấp nhất (${metrics.frontier.value}).`);
-  if (metrics.cost) summary.push(`${formatAlgorithmNames(metrics.cost.algorithms)} có cost tốt nhất (${metrics.cost.value}).`);
-  if (metrics.time) summary.push(`${formatAlgorithmNames(metrics.time.algorithms)} chạy nhanh nhất trong lần đo này (${metrics.time.value} ms).`);
+  if (metrics.nodes) summary.push(`${formatAlgorithmNames(metrics.nodes.algorithms)} expands the fewest nodes (${metrics.nodes.value}).`);
+  if (metrics.frontier) summary.push(`${formatAlgorithmNames(metrics.frontier.algorithms)} uses the lowest peak frontier (${metrics.frontier.value}).`);
+  if (metrics.cost) summary.push(`${formatAlgorithmNames(metrics.cost.algorithms)} has the best cost (${metrics.cost.value}).`);
+  if (metrics.time) summary.push(`${formatAlgorithmNames(metrics.time.algorithms)} runs fastest in this measurement (${metrics.time.value} ms).`);
 
   return {
     validCount: valid.length,
     metrics,
-    summary: summary.join(" ") || "Không thuật toán nào tìm được lời giải.",
+    summary: summary.join(" ") || "No algorithm found a solution.",
     optimal,
     notFound,
     errors,

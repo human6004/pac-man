@@ -1,4 +1,4 @@
-// FghChart.jsx — So sánh một metric f/g/h theo thứ tự mở rộng node.
+// FghChart.jsx — Compares an f/g/h metric by node expansion order.
 
 import { useState } from "react";
 import { buildFghSeries } from "./fghSeries";
@@ -33,11 +33,11 @@ export function FghChart({ rows, algoInfo }) {
 
   return (
     <details className="lab-panel fgh-details">
-      <summary>Phân tích nâng cao g / h / f</summary>
+      <summary>Advanced g / h / f analysis</summary>
       <div className="fgh-body">
         <div className="fgh-toolbar">
-          <p>Giá trị theo thứ tự node được mở rộng</p>
-          <div className="segmented metric-tabs" aria-label="Chọn metric">
+          <p>Values in node expansion order</p>
+          <div className="segmented metric-tabs" aria-label="Select metric">
           {["f", "g", "h"].map((key) => (
             <button
               key={key}
@@ -52,8 +52,8 @@ export function FghChart({ rows, algoInfo }) {
         </div>
 
       <svg viewBox={`0 0 ${W} ${H}`} className="fgh-chart" role="img" aria-labelledby="fgh-title fgh-desc">
-        <title id="fgh-title">Biểu đồ {metric.toUpperCase()} theo thứ tự mở rộng</title>
-        <desc id="fgh-desc">Mỗi đường là một thuật toán. Trục ngang là thứ tự mở rộng node, trục dọc là giá trị {metric}.</desc>
+        <title id="fgh-title">{metric.toUpperCase()} chart by expansion order</title>
+        <desc id="fgh-desc">Each line is an algorithm. X axis is node expansion order, Y axis is the {metric} value.</desc>
         {ticks.map((value, i) => {
           const y = sy(value, maxValue);
           return (
@@ -77,7 +77,7 @@ export function FghChart({ rows, algoInfo }) {
       </div>
       {truncated.length > 0 && (
         <p className="crt-label text-[12px] mt-2 normal-case">
-          Cây bị giới hạn ở {limit || 250} node; biểu đồ chỉ dùng phần đã ghi nhận.
+          Tree limited to {limit || 250} nodes; the chart uses only the recorded portion.
         </p>
       )}
       </div>

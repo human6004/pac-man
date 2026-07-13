@@ -1,14 +1,14 @@
 const GROUP_LABEL = {
-  uninformed: "Tìm kiếm không thông tin",
-  informed: "Tìm kiếm có thông tin",
+  uninformed: "Uninformed search",
+  informed: "Informed search",
 };
 
 const HEURISTIC_LABEL = {
-  null: "Không dùng",
-  manhattan: "Khoảng cách Manhattan",
-  nearest_food: "Thức ăn gần nhất",
-  farthest_food: "Thức ăn xa nhất",
-  food_count: "Số thức ăn còn lại",
+  null: "None",
+  manhattan: "Manhattan distance",
+  nearest_food: "Nearest food",
+  farthest_food: "Farthest food",
+  food_count: "Remaining food count",
 };
 
 function problemPatch(problem) {
@@ -44,24 +44,24 @@ function PlaybackDock({
 }) {
   const auto = cfg.runMode !== "step";
   const primaryAction = auto && busy ? onPause : auto ? onRun : onStep;
-  const primaryLabel = auto && busy ? (paused ? "Tiếp tục" : "Tạm dừng") : auto ? "Bắt đầu" : "Bước tiếp";
+  const primaryLabel = auto && busy ? (paused ? "Resume" : "Pause") : auto ? "Start" : "Next step";
   const primaryDisabled = auto ? (!busy && !onRun) : (busy || !canStepNext || !onStep);
 
   return (
-    <section className="playback-dock" aria-label="Điều khiển mô phỏng">
+    <section className="playback-dock" aria-label="Playback controls">
       <div className="playback-progress" aria-live="polite">
-        <span>Tiến độ</span>
+        <span>Progress</span>
         <strong>{progress?.step ?? 0}/{progress?.total ?? 0}</strong>
       </div>
       <div className="playback-actions">
         <button className="button secondary" disabled={busy || !canStepBack || !onStepBack} onClick={onStepBack}>
-          Lùi bước
+          Step back
         </button>
         <button className="button primary" disabled={primaryDisabled} onClick={primaryAction}>
           {primaryLabel}
         </button>
         <button className={`button ${busy ? "danger" : "ghost"}`} disabled={!onReset} onClick={onReset}>
-          {busy ? "Dừng" : "Đặt lại"}
+          {busy ? "Stop" : "Reset"}
         </button>
       </div>
     </section>
@@ -125,8 +125,8 @@ export function ControlDeck({
       <section className="lab-panel compare-config" aria-labelledby="compare-config-title">
         <div className="panel-heading">
           <div>
-            <p className="section-kicker">Thiết lập phép thử</p>
-            <h2 id="compare-config-title">Chọn thuật toán</h2>
+            <p className="section-kicker">Experiment setup</p>
+            <h2 id="compare-config-title">Select algorithms</h2>
           </div>
           <button
             type="button"
@@ -134,12 +134,12 @@ export function ControlDeck({
             disabled={busy}
             onClick={() => set({ compareAlgos: allSelected ? [] : algorithms.map((algorithm) => algorithm.key) }, true)}
           >
-            {allSelected ? "Bỏ chọn" : "Chọn tất cả"}
+            {allSelected ? "Deselect" : "Select all"}
           </button>
         </div>
 
         <div className="config-grid compare-fields">
-          <Field label="Bản đồ">
+          <Field label="Map">
             <select value={cfg.map} disabled={busy} onChange={(event) => {
               onProblemChange?.();
               set({ map: event.target.value, goal: null }, true);
@@ -147,13 +147,13 @@ export function ControlDeck({
               {maps.map((map) => <option key={map} value={map}>{map}</option>)}
             </select>
           </Field>
-          <Field label="Bài toán">
+          <Field label="Problem">
             <select value={cfg.problem} disabled={busy} onChange={(event) => {
               onProblemChange?.(event.target.value);
               set(problemPatch(event.target.value), true);
             }}>
-              <option value="eat_all">Ăn hết thức ăn</option>
-              <option value="path_to_cell">Đi đến ô đã chọn</option>
+              <option value="eat_all">Eat all food</option>
+              <option value="path_to_cell">Go to selected cell</option>
             </select>
           </Field>
           {compareUsesHeuristic && (
@@ -163,15 +163,15 @@ export function ControlDeck({
               </select>
             </Field>
           )}
-          <Field label="Đích so sánh" hint={cfg.problem === "path_to_cell" ? "Đích đang dùng cho mọi thuật toán." : "So sánh trên cùng toàn bộ thức ăn."}>
+          <Field label="Comparison target" hint={cfg.problem === "path_to_cell" ? "Target used for every algorithm." : "Compared over all food."}>
             <output className="field-output">
-              {cfg.problem === "eat_all" ? "Toàn bộ thức ăn" : cfg.goal ? `(${cfg.goal[0]}, ${cfg.goal[1]})` : "Mặc định: ô xa nhất"}
+              {cfg.problem === "eat_all" ? "All food" : cfg.goal ? `(${cfg.goal[0]}, ${cfg.goal[1]})` : "Default: farthest cell"}
             </output>
           </Field>
         </div>
 
         <fieldset className="algorithm-picker">
-          <legend>Thuật toán cần so sánh</legend>
+          <legend>Algorithms to compare</legend>
           <div>
             {algorithms.map((algorithm) => {
               const checked = selected.includes(algorithm.key);
@@ -196,12 +196,12 @@ export function ControlDeck({
           </div>
         </fieldset>
 
-        {!validSelection && <p className="field-error" role="alert">Chọn từ 2 đến 5 thuật toán.</p>}
+        {!validSelection && <p className="field-error" role="alert">Select 2 to 5 algorithms.</p>}
         <div className="compare-submit-row">
           <button className="button primary compare-submit" disabled={busy || !validSelection} onClick={onCompare}>
-            {busy ? "Đang so sánh" : `Chạy so sánh ${selected.length} thuật toán`}
+            {busy ? "Comparing" : `Run comparison of ${selected.length} algorithms`}
           </button>
-          {busy && <button className="button danger" onClick={onReset}>Dừng</button>}
+          {busy && <button className="button danger" onClick={onReset}>Stop</button>}
         </div>
       </section>
     );
@@ -214,13 +214,13 @@ export function ControlDeck({
     <section className="lab-panel experiment-bar" aria-labelledby="experiment-title" aria-disabled={configLocked}>
       <div className="panel-heading compact-heading">
         <div>
-          <p className="section-kicker">Thiết lập thí nghiệm</p>
-          <h2 id="experiment-title">Cấu hình tìm kiếm</h2>
+          <p className="section-kicker">Experiment setup</p>
+          <h2 id="experiment-title">Search configuration</h2>
         </div>
-        {configLocked && <span className="status-note">Đặt lại để đổi cấu hình</span>}
+        {configLocked && <span className="status-note">Reset to change configuration</span>}
       </div>
       <div className="config-grid">
-        <Field label="Bản đồ">
+        <Field label="Map">
           <select value={cfg.map} disabled={configLocked} onChange={(event) => {
             onProblemChange?.();
             set({ map: event.target.value, goal: null }, true);
@@ -228,16 +228,16 @@ export function ControlDeck({
             {maps.map((map) => <option key={map} value={map}>{map}</option>)}
           </select>
         </Field>
-        <Field label="Bài toán">
+        <Field label="Problem">
           <select value={cfg.problem} disabled={configLocked} onChange={(event) => {
             onProblemChange?.(event.target.value);
             set(problemPatch(event.target.value), true);
           }}>
-            <option value="eat_all">Ăn hết thức ăn</option>
-            <option value="path_to_cell">Đi đến ô đã chọn</option>
+            <option value="eat_all">Eat all food</option>
+            <option value="path_to_cell">Go to selected cell</option>
           </select>
         </Field>
-        <Field label="Thuật toán">
+        <Field label="Algorithm">
           <select value={cfg.algorithm} disabled={configLocked} onChange={(event) => set({ algorithm: event.target.value }, true)}>
             {["uninformed", "informed"].map((group) => groups[group].length ? (
               <optgroup key={group} label={GROUP_LABEL[group]}>
@@ -253,20 +253,20 @@ export function ControlDeck({
             </select>
           </Field>
         )}
-        <Field label="Đích" hint={cfg.problem === "path_to_cell" ? "Click bản đồ hoặc dùng phím mũi tên rồi Enter." : "Bài toán kết thúc khi hết thức ăn."}>
+        <Field label="Target" hint={cfg.problem === "path_to_cell" ? "Click the map or use arrow keys then Enter." : "The problem ends when all food is eaten."}>
           <output className="field-output">
-            {cfg.problem === "eat_all" ? "Toàn bộ thức ăn" : cfg.goal ? `(${cfg.goal[0]}, ${cfg.goal[1]})` : "Mặc định: ô xa nhất"}
+            {cfg.problem === "eat_all" ? "All food" : cfg.goal ? `(${cfg.goal[0]}, ${cfg.goal[1]})` : "Default: farthest cell"}
           </output>
         </Field>
         <div className="field">
-          <span id="run-mode-label">Chế độ chạy</span>
+          <span id="run-mode-label">Run mode</span>
           <div className="segmented" role="group" aria-labelledby="run-mode-label">
-            <button type="button" aria-pressed={cfg.runMode !== "step"} disabled={configLocked} onClick={() => set({ runMode: "auto" })}>Tự động</button>
-            <button type="button" aria-pressed={cfg.runMode === "step"} disabled={configLocked} onClick={() => set({ runMode: "step" })}>Từng bước</button>
+            <button type="button" aria-pressed={cfg.runMode !== "step"} disabled={configLocked} onClick={() => set({ runMode: "auto" })}>Auto</button>
+            <button type="button" aria-pressed={cfg.runMode === "step"} disabled={configLocked} onClick={() => set({ runMode: "step" })}>Step</button>
           </div>
         </div>
         {cfg.runMode !== "step" && (
-          <Field label={`Tốc độ: ${cfg.speed} bước/giây`}>
+          <Field label={`Speed: ${cfg.speed} steps/sec`}>
             <input type="range" min="1" max="60" value={cfg.speed} disabled={configLocked} onChange={(event) => set({ speed: Number(event.target.value) })} />
           </Field>
         )}

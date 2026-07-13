@@ -29,12 +29,12 @@ const DEFAULT_CFG = {
 };
 
 const PHASE_LABEL = {
-  idle: "Sẵn sàng",
-  solving: "Đang giải bài toán",
-  replaying: "Đang mô phỏng",
-  paused: "Tạm dừng",
-  complete: "Hoàn tất",
-  error: "Có lỗi",
+  idle: "Ready",
+  solving: "Solving",
+  replaying: "Replaying",
+  paused: "Paused",
+  complete: "Complete",
+  error: "Error",
 };
 
 const formatCost = (value) => Number.isFinite(value) ? Math.round(value * 100) / 100 : "-";
@@ -45,13 +45,13 @@ function StatusStrip({ runner, progress }) {
   return (
     <section className={`status-strip phase-${runner.phase}`} aria-live="polite" aria-atomic="true">
       <div className="status-main">
-        <span>{PHASE_LABEL[runner.phase] || "Sẵn sàng"}</span>
+        <span>{PHASE_LABEL[runner.phase] || "Ready"}</span>
         <strong>{runner.status}</strong>
       </div>
-      <div><span>Bước</span><strong>{progress?.step ?? 0}/{progress?.total ?? 0}</strong></div>
+      <div><span>Step</span><strong>{progress?.step ?? 0}/{progress?.total ?? 0}</strong></div>
       <div><span>CURRENT</span><strong>{position}</strong></div>
-      <div><span>Hành động</span><strong>{node?.action || "-"}</strong></div>
-      <div><span>Thức ăn</span><strong>{node?.food?.length ?? "-"}</strong></div>
+      <div><span>Action</span><strong>{node?.action || "-"}</strong></div>
+      <div><span>Food</span><strong>{node?.food?.length ?? "-"}</strong></div>
       <div className="status-costs">
         <span style={{ color: "var(--color-g)" }}>g={formatCost(node?.g)}</span>
         <span style={{ color: "var(--color-h)" }}>h={formatCost(node?.h)}</span>
@@ -237,7 +237,7 @@ export default function App() {
     >
       {error && (
         <div className="inline-error" role="alert">
-          {meta.error ? `Không kết nối được backend tại ${Api.baseUrl}.` : mapError}
+          {meta.error ? `Cannot connect to backend at ${Api.baseUrl}.` : mapError}
         </div>
       )}
 
@@ -245,9 +245,9 @@ export default function App() {
         <div className="play-page">
           <ControlDeck {...deckProps} tab="play" section="settings" />
 
-          <div className="segmented pane-switch" role="group" aria-label="Pane đang thao tác">
-            <button type="button" aria-pressed={activePane === "map"} onClick={() => setActivePane("map")}>Bản đồ</button>
-            <button type="button" aria-pressed={activePane === "tree"} onClick={() => setActivePane("tree")}>Cây tìm kiếm</button>
+          <div className="segmented pane-switch" role="group" aria-label="Active pane">
+            <button type="button" aria-pressed={activePane === "map"} onClick={() => setActivePane("map")}>Map</button>
+            <button type="button" aria-pressed={activePane === "tree"} onClick={() => setActivePane("tree")}>Search tree</button>
           </div>
 
           <div className="run-workspace">
@@ -258,10 +258,10 @@ export default function App() {
             >
               <div className="panel-heading game-heading">
                 <div>
-                  <p className="section-kicker">Môi trường</p>
-                  <h2>Bản đồ trò chơi</h2>
+                  <p className="section-kicker">Environment</p>
+                  <h2>Game map</h2>
                 </div>
-                {goalEnabled && <span className="status-note">Đang chọn đích</span>}
+                {goalEnabled && <span className="status-note">Selecting target</span>}
               </div>
               <CRTScreen
                 ref={canvasRef}
@@ -315,8 +315,8 @@ export default function App() {
             </>
           ) : (
             <section className="lab-panel empty-compare">
-              <h2>So sánh có giải thích</h2>
-              <p>Chọn ít nhất hai thuật toán. Kết quả sẽ chỉ ra đường đi, lượng node, frontier, thời gian và lý do khác biệt.</p>
+              <h2>Explained comparison</h2>
+              <p>Select at least two algorithms. Results will show the path, node count, frontier, time, and why they differ.</p>
             </section>
           )}
         </div>

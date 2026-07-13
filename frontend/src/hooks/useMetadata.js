@@ -1,7 +1,7 @@
-// useMetadata.js — Nạp danh sách bản đồ + thuật toán + heuristic từ backend.
+// useMetadata.js — Loads the list of maps + algorithms + heuristics from the backend.
 //
-// Trả về { maps, algorithms, heuristics, algoInfo, loading, error }.
-// algoInfo: map key -> {key, name, group, uses_heuristic} để tra cứu nhanh.
+// Returns { maps, algorithms, heuristics, algoInfo, loading, error }.
+// algoInfo: map key -> {key, name, group, uses_heuristic} for quick lookup.
 
 import { useEffect, useState } from "react";
 import { Api } from "../api/client";

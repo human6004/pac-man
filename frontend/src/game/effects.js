@@ -1,14 +1,15 @@
-// effects.js — Hiệu ứng particle khi ăn food phủ lên canvas.
+// effects.js — Particle effect overlaid on the canvas when food is eaten.
 //
-// Dùng chung hệ tọa độ pixel với PacmanRenderer (đã offset/cell). Renderer gọi
-// effects.spawnBurst(cx, cy) khi ăn, và effects.draw(ctx) ở cuối mỗi frame.
+// Shares the same pixel coordinate system as PacmanRenderer (already offset/cell).
+// The renderer calls effects.spawnBurst(cx, cy) on eat, and effects.draw(ctx) at the
+// end of each frame.
 
 class Effects {
   constructor() {
     this.particles = [];
   }
 
-  // Nổ chùm hạt nhỏ tại tâm (cx, cy) màu tùy chọn.
+  // Spawns a small particle burst at center (cx, cy) with an optional color.
   spawnBurst(cx, cy, color = "#FFE600", count = 8) {
     for (let i = 0; i < count; i++) {
       const ang = (Math.PI * 2 * i) / count + Math.random() * 0.4;
@@ -30,7 +31,7 @@ class Effects {
     for (const p of this.particles) {
       p.x += p.vx;
       p.y += p.vy;
-      p.vy += 0.06; // trọng lực nhẹ
+      p.vy += 0.06; // slight gravity
       p.life -= p.decay;
     }
     this.particles = this.particles.filter((p) => p.life > 0);

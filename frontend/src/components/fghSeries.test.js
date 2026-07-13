@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { buildFghSeries } from "./fghSeries.js";
 
-test("chỉ lấy node đã mở rộng và sort theo expanded_order", () => {
+test("only take expanded nodes and sort by expanded_order", () => {
   const rows = [{
     algorithm: "bfs",
     tree: [
@@ -17,7 +17,7 @@ test("chỉ lấy node đã mở rộng và sort theo expanded_order", () => {
   assert.deepEqual(series.values, [0, 2]);
 });
 
-test("giữ nguyên h=0 và cho phép series dài ngắn khác nhau", () => {
+test("keep h=0 and allow series of different lengths", () => {
   const rows = [
     { algorithm: "bfs", tree: [{ expanded_order: 0, h: 0 }, { expanded_order: 1, h: 0 }] },
     { algorithm: "astar", tree: [{ expanded_order: 0, h: 4 }] },

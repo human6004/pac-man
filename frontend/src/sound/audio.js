@@ -1,7 +1,7 @@
-// audio.js — Âm thanh arcade 8-bit tạo bằng WebAudio (không cần file, chạy offline).
+// audio.js — 8-bit arcade sound generated with WebAudio (no files needed, runs offline).
 //
-// Dùng oscillator vuông/tam giác để mô phỏng tiếng máy game cổ. Một AudioContext
-// dùng chung; chỉ khởi tạo sau tương tác người dùng (chính sách autoplay trình duyệt).
+// Uses square/triangle oscillators to mimic classic arcade machine sounds. A single
+// shared AudioContext is only created after user interaction (browser autoplay policy).
 
 class ArcadeAudio {
   constructor() {
@@ -24,7 +24,7 @@ class ArcadeAudio {
     this.enabled = on;
   }
 
-  // Một nốt đơn: type sóng, tần số, thời lượng, âm lượng.
+  // A single note: waveform type, frequency, duration, volume.
   _blip(freq, dur = 0.08, type = "square", vol = 0.18) {
     if (!this.enabled) return;
     const ctx = this._ensure();
@@ -40,7 +40,7 @@ class ArcadeAudio {
     osc.stop(ctx.currentTime + dur);
   }
 
-  // Lướt tần số từ f1 -> f2 (dùng cho win/coin).
+  // Sweeps frequency from f1 -> f2 (used for win/coin).
   _sweep(f1, f2, dur = 0.25, type = "square", vol = 0.16) {
     if (!this.enabled) return;
     const ctx = this._ensure();
@@ -57,9 +57,9 @@ class ArcadeAudio {
     osc.stop(ctx.currentTime + dur);
   }
 
-  // --- Hiệu ứng theo sự kiện game ---
+  // --- Effects triggered by game events ---
   eat() {
-    // Tiếng "waka" luân phiên 2 cao độ, tiết chế tần suất.
+    // "Waka" sound alternating between 2 pitches, rate-limited.
     const now = performance.now();
     if (now - this._lastMove < 70) return;
     this._lastMove = now;

@@ -3,14 +3,14 @@ import { ALGORITHM_GUIDE, buildComparisonInsights, formatAlgorithmNames } from "
 import { SearchTreePreview } from "./SearchTreePanel";
 
 const METRIC_LABELS = [
-  ["nodes", "Ít node nhất", "node"],
-  ["frontier", "Frontier thấp nhất", "node"],
-  ["cost", "Cost tốt nhất", "cost"],
-  ["time", "Nhanh nhất lần đo", "ms"],
+  ["nodes", "Fewest nodes", "node"],
+  ["frontier", "Lowest frontier", "node"],
+  ["cost", "Best cost", "cost"],
+  ["time", "Fastest measured", "ms"],
 ];
 
 function names(metric) {
-  return formatAlgorithmNames(metric?.algorithms) || "Chưa có";
+  return formatAlgorithmNames(metric?.algorithms) || "N/A";
 }
 
 export function ComparisonView({ rows, algoInfo }) {
@@ -20,21 +20,21 @@ export function ComparisonView({ rows, algoInfo }) {
   return (
     <section className="comparison-overview" aria-labelledby="comparison-overview-title">
       <div className="comparison-lead lab-panel">
-        <p className="section-kicker">Kết luận nhanh</p>
-        <h2 id="comparison-overview-title">Khác biệt chính trong lần chạy này</h2>
+        <p className="section-kicker">Quick takeaway</p>
+        <h2 id="comparison-overview-title">Key differences in this run</h2>
         <p>{insights.summary}</p>
-        {insights.optimal.length > 0 && <p><strong>Đảm bảo tối ưu:</strong> {insights.optimal.join(", ")}.</p>}
-        {insights.notFound.length > 0 && <p className="warning-text"><strong>Không tìm thấy đường:</strong> {insights.notFound.join(", ")}.</p>}
+        {insights.optimal.length > 0 && <p><strong>Guaranteed optimal:</strong> {insights.optimal.join(", ")}.</p>}
+        {insights.notFound.length > 0 && <p className="warning-text"><strong>No path found:</strong> {insights.notFound.join(", ")}.</p>}
         {insights.errors.map((item) => <p className="error-text" key={item.algorithm}><strong>{item.algorithm}:</strong> {item.error}</p>)}
       </div>
 
-      <div className="insight-strip" aria-label="Các chỉ số nổi bật">
+      <div className="insight-strip" aria-label="Highlight metrics">
         {METRIC_LABELS.map(([key, label, unit]) => {
           const metric = insights.metrics[key];
           return (
             <div key={key}>
               <span>{label}</span>
-              <strong>{metric ? `${metric.value} ${unit}` : "Chưa có"}</strong>
+              <strong>{metric ? `${metric.value} ${unit}` : "N/A"}</strong>
               <small>{names(metric)}</small>
             </div>
           );
@@ -48,8 +48,8 @@ export function ComparisonView({ rows, algoInfo }) {
           return (
             <article key={row.algorithm}>
               <h3>{label}</h3>
-              <p>{guide?.strategy || "Theo dõi thứ tự mở node để đọc cách thuật toán ưu tiên trạng thái."}</p>
-              <small>{guide?.guarantee || (row.optimal ? "Có đảm bảo tối ưu." : "Không đảm bảo tối ưu.")}</small>
+              <p>{guide?.strategy || "Follow the node expansion order to see how the algorithm prioritizes states."}</p>
+              <small>{guide?.guarantee || (row.optimal ? "Guaranteed optimal." : "Not guaranteed optimal.")}</small>
             </article>
           );
         })}
@@ -78,22 +78,22 @@ export function ComparisonTrees({ rows, algoInfo, problem, treeStep }) {
 
   const subtitle = (row) => {
     const stats = row.stats || {};
-    return `${stats.nodes_expanded ?? "-"} node mở rộng, ${stats.path_length ?? "-"} bước, cost ${stats.cost ?? "-"}, ${stats.time_ms ?? "-"} ms`;
+    return `${stats.nodes_expanded ?? "-"} nodes expanded, ${stats.path_length ?? "-"} steps, cost ${stats.cost ?? "-"}, ${stats.time_ms ?? "-"} ms`;
   };
 
   return (
     <section className="comparison-trees" aria-labelledby="comparison-trees-title">
       <div className="section-heading-row">
         <div>
-          <p className="section-kicker">Theo dõi nguyên nhân</p>
-          <h2 id="comparison-trees-title">Hai cây tìm kiếm đồng bộ</h2>
-          <p>Cùng một bước thời gian, mỗi cây giữ pan và zoom riêng.</p>
+          <p className="section-kicker">Trace the cause</p>
+          <h2 id="comparison-trees-title">Two synchronized search trees</h2>
+          <p>Same time step; each tree keeps its own pan and zoom.</p>
         </div>
         {available.length > 2 && (
           <div className="pair-selectors">
             {[0, 1].map((index) => (
               <label key={index}>
-                <span>Cây {index + 1}</span>
+                <span>Tree {index + 1}</span>
                 <select value={normalized[index] || ""} onChange={(event) => changePair(index, event.target.value)}>
                   {available.map((row) => (
                     <option key={row.algorithm} value={row.algorithm} disabled={normalized[1 - index] === row.algorithm}>
@@ -108,7 +108,7 @@ export function ComparisonTrees({ rows, algoInfo, problem, treeStep }) {
       </div>
 
       {selectedRows.length > 1 && (
-        <div className="segmented tree-pane-switch" role="group" aria-label="Cây đang thao tác">
+        <div className="segmented tree-pane-switch" role="group" aria-label="Active tree">
           {selectedRows.map((row, index) => (
             <button key={row.algorithm} type="button" aria-pressed={activePane === index} onClick={() => setActivePane(index)}>
               {nameOf(row.algorithm)}

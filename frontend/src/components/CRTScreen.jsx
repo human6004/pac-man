@@ -1,5 +1,5 @@
-// CRTScreen.jsx — Màn hình CRT bọc <canvas>: bezel cong, scanline, vạch quét,
-// hiệu ứng bật nguồn. Canvas được expose qua ref để renderer vẽ imperative.
+// CRTScreen.jsx — CRT screen wrapping a <canvas>: curved bezel, scanlines, sweep line,
+// power-on effect. Canvas is exposed via ref so the renderer can draw imperatively.
 
 import { forwardRef } from "react";
 
@@ -16,12 +16,12 @@ export const CRTScreen = forwardRef(function CRTScreen({ poweron, onCanvasClick,
         tabIndex={goalEnabled ? 0 : undefined}
         role="img"
         aria-label={goalEnabled
-          ? `Bản đồ Pac-Man chọn đích. ${goal ? `Đích hiện tại hàng ${goal[0]}, cột ${goal[1]}.` : "Chưa chọn đích."} Dùng phím mũi tên và Enter.`
-          : "Bản đồ Pac-Man mô phỏng quá trình tìm kiếm."}
+          ? `Pac-Man map, target selection. ${goal ? `Current target row ${goal[0]}, col ${goal[1]}.` : "No target selected."} Use arrow keys and Enter.`
+          : "Pac-Man map visualizing the search process."}
         style={goalEnabled ? { cursor: "crosshair" } : undefined}
         className={poweron ? "crt-poweron" : ""}
       />
-      {goalEnabled && <p className="canvas-help">Mũi tên: di chuyển đích. Enter: xác nhận. Escape: xóa.</p>}
+      {goalEnabled && <p className="canvas-help">Arrows: move target. Enter: confirm. Escape: clear.</p>}
     </div>
   );
 });

@@ -1,10 +1,10 @@
-// PacmanRenderer.js — Lớp vẽ trò chơi Pac-man lên canvas 2D (imperative).
+// PacmanRenderer.js — Class that draws the Pac-man game onto a 2D canvas (imperative).
 //
-// Tọa độ dữ liệu là (row, col). Khi vẽ: x = col * cell, y = row * cell.
-// Renderer tự tính cell size để vừa khung canvas và căn giữa bản đồ.
-// Dùng trong React qua ref để animation không phụ thuộc chu kỳ render component.
+// Data coordinates are (row, col). When drawing: x = col * cell, y = row * cell.
+// The renderer computes its own cell size to fit the canvas and center the map.
+// Used in React via a ref so animation doesn't depend on the component render cycle.
 
-// Bảng màu arcade gốc (đồng bộ với @theme trong index.css).
+// Original arcade color palette (kept in sync with @theme in index.css).
 const GHOST_COLORS = ["#FF0000", "#FFB8FF", "#00FFFF", "#FFB852"];
 const WALL_FILL = "#0a0f3a";
 const WALL_STROKE = "#2121DE";
@@ -12,9 +12,9 @@ const FOOD_COLOR = "#FFB897";
 const PELLET_ON = "#FFF04D";
 const PELLET_OFF = "#9c8e2a";
 const PAC_COLOR = "#FFE600";
-const VISITED_RGB = "0, 255, 255"; // inky cyan cho lớp "đã duyệt"
+const VISITED_RGB = "0, 255, 255"; // inky cyan for the "visited" layer
 const PATH_COLOR = "rgba(255, 230, 0, 0.85)";
-const PAUSE_POLL_MS = 60; // nhịp kiểm tra lại khi animation đang tạm dừng
+const PAUSE_POLL_MS = 60; // recheck interval while animation is paused
 
 export class PacmanRenderer {
   constructor(canvas) {
@@ -25,7 +25,7 @@ export class PacmanRenderer {
 
     this.visited = [];
     this.path = [];
-    this.goal = null; // ô đích do người dùng click (bài path_to_cell)
+    this.goal = null; // target cell chosen by user click (path_to_cell exercise)
 
     this.pacman = null;
     this.pacDir = "RIGHT";
@@ -39,7 +39,7 @@ export class PacmanRenderer {
     this._mouthPhase = 0;
     this.reducedMotion = false;
 
-    // Hook hiệu ứng: gọi khi Pac-man ăn food/pellet (gán từ ngoài).
+    // Effects hook: called when Pac-man eats food/pellet (assigned externally).
     this.onEat = null; // (centerX, centerY, isPellet) => void
   }
 
@@ -111,9 +111,9 @@ export class PacmanRenderer {
     return valid ? next : start.slice();
   }
 
-  // Quy đổi toạ độ con trỏ (clientX/Y) -> ô [row, col] trên bản đồ.
-  // Canvas có thể bị CSS scale nên phải nhân tỉ lệ theo getBoundingClientRect.
-  // Trả null nếu ngoài bản đồ hoặc trúng tường (ô không hợp lệ làm đích).
+  // Converts pointer coordinates (clientX/Y) -> cell [row, col] on the map.
+  // The canvas may be CSS-scaled, so we must scale by getBoundingClientRect.
+  // Returns null if outside the map or on a wall (invalid cell for a target).
   pixelToCell(clientX, clientY) {
     if (!this.map) return null;
     const rect = this.canvas.getBoundingClientRect();
@@ -128,10 +128,11 @@ export class PacmanRenderer {
     return [row, col];
   }
 
-  // Pha duyệt cây: Pac-man nhảy giữa các node theo expanded_order (không phải
-  // đường đi). Ta KHÔNG set lại food theo food-state của node (sẽ khiến food
-  // "hiện lại" khi expand nhảy sang nhánh nông hơn), mà chỉ XÓA food tại ô
-  // Pac-man đang đứng. Nhờ vậy food giảm đơn điệu: tới ô nào ăn ô đó, mất hẳn.
+  // Tree-traversal phase: Pac-man jumps between nodes following expanded_order
+  // (not the actual path). We do NOT restore food based on each node's food-state
+  // (that would make food "reappear" when expansion jumps to a shallower branch);
+  // instead we only DELETE food at the cell Pac-man currently stands on. This keeps
+  // food strictly decreasing: whichever cell is reached gets eaten for good.
   setSearchNode(node, { animate = true, effect = true } = {}) {
     if (!node) return;
     this.setPacman(node.pos, node.action || this._dirOf(this.pacman, node.pos));
@@ -140,7 +141,7 @@ export class PacmanRenderer {
     if (animate) this._mouthPhase += 0.9;
   }
 
-  // Xóa food/pellet tại ô `rc` (nếu có) và bắn hiệu ứng ăn.
+  // Deletes food/pellet at cell `rc` (if any) and fires the eat effect.
   _eatAt(rc, effect = true) {
     const k = this._key(rc);
     const ateFood = this.food.delete(k);
@@ -151,8 +152,8 @@ export class PacmanRenderer {
     }
   }
 
-  // Dựng lại trạng thái tại một mốc timeline: ăn dồn tất cả ô đã đi qua (để
-  // step tới/lui vẫn đơn điệu), chỉ node cuối mới bắn hiệu ứng.
+  // Rebuilds state at a timeline point: eats all cells passed through so far
+  // (keeps stepping forward/backward monotonic), only the last node fires the effect.
   setSearchTimeline(nodes) {
     if (!nodes || nodes.length === 0) return;
     for (let i = 0; i < nodes.length - 1; i++) this._eatAt(nodes[i].pos, false);
@@ -172,8 +173,8 @@ export class PacmanRenderer {
     this._drawPacman();
   }
 
-  // Ô đích do người dùng chọn (bài path_to_cell): viền vuông nhấp nháy + chữ thập
-  // ở giữa, màu inky cyan để phân biệt với đường đi (vàng) và ô đã duyệt.
+  // Target cell chosen by the user (path_to_cell exercise): blinking square outline
+  // + a cross in the middle, inky cyan to distinguish from the path (yellow) and visited cells.
   _drawGoal() {
     if (!this.goal) return;
     const { ctx, cell } = this;
@@ -315,7 +316,7 @@ export class PacmanRenderer {
     }
   }
 
-  // Pha duyệt: Pac-man đứng trên node đang được chọn trong cây, không tô màu map.
+  // Traversal phase: Pac-man stands on the currently selected tree node, no map coloring.
   animateSearch(treeNodes, stepDelay, shouldStop, onStep, shouldPause) {
     return new Promise((resolve) => {
       this.visited = [];
@@ -347,7 +348,7 @@ export class PacmanRenderer {
     });
   }
 
-  // Animate Pac-man đi dọc path (mảng [r,c]).
+  // Animates Pac-man moving along the path (array of [r,c]).
   animatePath(pathCells, stepDelay, shouldStop, shouldPause) {
     return new Promise((resolve) => {
       let i = 0;
@@ -366,6 +367,8 @@ export class PacmanRenderer {
         this.pacman = cur.slice();
         this._prevPacman = cur.slice();
         this._mouthPhase += 0.9;
+        // Grow the route line as Pac-man advances (kept after finishing).
+        this.path = pathCells.slice(0, i + 1);
         this.draw();
         i++;
         setTimeout(tick, stepDelay);

@@ -1,16 +1,16 @@
-// client.js — Giao tiếp với backend FastAPI.
-// BASE_URL đọc từ biến môi trường Vite, mặc định localhost:8000.
+// client.js — Communicates with the FastAPI backend.
+// BASE_URL is read from a Vite environment variable, defaulting to localhost:8000.
 
 const BASE_URL = import.meta.env?.VITE_API_BASE ?? "http://localhost:8000";
 
-// Trích thông báo lỗi từ response: ưu tiên field `detail` (chuẩn FastAPI),
-// fallback text thô, cuối cùng là mã lỗi.
+// Extract the error message from the response: prefer the `detail` field
+// (FastAPI convention), fall back to raw text, and finally the status code.
 async function _throwHttp(res, path) {
   let detail = await res.text();
   try {
     detail = JSON.parse(detail).detail ?? detail;
   } catch {
-    // giữ nguyên text
+    // keep the raw text as is
   }
   throw new Error(detail || `${path} → ${res.status}`);
 }

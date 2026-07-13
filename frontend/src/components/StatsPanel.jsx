@@ -1,16 +1,16 @@
 const METRICS = [
-  ["Thời gian", "time_ms", "ms"],
-  ["Số bước", "path_length", ""],
+  ["Time", "time_ms", "ms"],
+  ["Steps", "path_length", ""],
   ["Cost", "cost", ""],
-  ["Node mở rộng", "nodes_expanded", ""],
-  ["Frontier lớn nhất", "max_frontier", ""],
+  ["Nodes expanded", "nodes_expanded", ""],
+  ["Max frontier", "max_frontier", ""],
 ];
 
-const format = (value, unit) => value == null ? "Chưa có" : `${value}${unit ? ` ${unit}` : ""}`;
+const format = (value, unit) => value == null ? "N/A" : `${value}${unit ? ` ${unit}` : ""}`;
 
 export function StatsPanel({ stats }) {
   return (
-    <section className="metric-strip" aria-label="Số liệu thuật toán">
+    <section className="metric-strip" aria-label="Algorithm metrics">
       {METRICS.map(([label, key, unit]) => (
         <div key={key}>
           <span>{label}</span>

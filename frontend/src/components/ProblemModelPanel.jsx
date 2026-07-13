@@ -1,25 +1,25 @@
 const MODELS = {
   eat_all: {
     rows: [
-      ["Trạng thái đầu", "((1,1), F₀)"],
-      ["Trạng thái đích", "((x,y), ∅)"],
-      ["Hành động", "Đi lên, xuống, trái, phải nếu không có tường"],
-      ["Chi phí", "Mỗi bước tốn 1; tối ưu nghĩa là ít bước nhất"],
+      ["Initial state", "((1,1), F₀)"],
+      ["Goal state", "((x,y), ∅)"],
+      ["Actions", "Move up, down, left, right if no wall"],
+      ["Cost", "Each step costs 1; optimal means fewest steps"],
     ],
     key: "state_key = ((x,y), F)",
-    dedup: "Chỉ loại trạng thái khi toàn bộ state_key đã xuất hiện. Cùng vị trí p nhưng tập thức ăn F khác nhau vẫn là hai trạng thái khác nhau.",
-    note: "p là ô Pac-Man; F₀ là tập thức ăn ban đầu; ∅ nghĩa là không còn thức ăn.",
+    dedup: "Only prune a state when the full state_key has appeared. Same position p but different food set F are still two distinct states.",
+    note: "p is the Pac-Man cell; F₀ is the initial food set; ∅ means no food left.",
   },
   path_to_cell: {
     rows: [
-      ["Trạng thái đầu", "p = (1,1)"],
-      ["Trạng thái đích", "p = (x_goal, y_goal)"],
-      ["Hành động", "Đi lên, xuống, trái, phải nếu không có tường"],
-      ["Chi phí", "Mỗi bước tốn 1; tối ưu nghĩa là đường ngắn nhất"],
+      ["Initial state", "p = (1,1)"],
+      ["Goal state", "p = (x_goal, y_goal)"],
+      ["Actions", "Move up, down, left, right if no wall"],
+      ["Cost", "Each step costs 1; optimal means shortest path"],
     ],
     key: "state_key = p = (x,y)",
-    dedup: "Loại trạng thái con khi vị trí p đã xuất hiện trong explored hoặc closed list.",
-    note: "Nếu chưa chọn đích, backend dùng ô hợp lệ xa nhất làm mặc định.",
+    dedup: "Prune a child state when position p already appeared in the explored or closed list.",
+    note: "If no target is chosen, the backend uses the farthest valid cell as default.",
   },
 };
 
@@ -27,7 +27,7 @@ export function ProblemModelPanel({ problem }) {
   const model = MODELS[problem] || MODELS.eat_all;
   return (
     <details className="lab-panel model-details">
-      <summary>Cách mô hình hóa bài toán</summary>
+      <summary>How the problem is modeled</summary>
       <div className="model-body">
         <dl>
           {model.rows.map(([label, value]) => (
@@ -38,7 +38,7 @@ export function ProblemModelPanel({ problem }) {
           ))}
         </dl>
         <div className="model-dedup">
-          <strong>Loại trạng thái trùng</strong>
+          <strong>Duplicate-state pruning</strong>
           <code>{model.key}</code>
           <p>{model.dedup}</p>
         </div>

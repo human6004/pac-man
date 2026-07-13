@@ -36,15 +36,15 @@ test("comparison insights handle missing metrics and no successful result", () =
 
   const failed = buildComparisonInsights([{ algorithm: "astar", error: "timeout" }], algoInfo);
   assert.equal(failed.validCount, 0);
-  assert.match(failed.summary, /không có kết quả hợp lệ/i);
+  assert.match(failed.summary, /no valid results/i);
 });
 
-test("comparison insights join multiple tied algorithms as natural Vietnamese", () => {
+test("comparison insights join multiple tied algorithms as natural English", () => {
   const rows = ["bfs", "astar", "greedy"].map((algorithm) => ({
     algorithm,
     found: true,
     stats: { nodes_expanded: 3, max_frontier: 2, cost: 4, time_ms: 1 },
   }));
 
-  assert.match(buildComparisonInsights(rows, algoInfo).summary, /BFS, A\* và Greedy/);
+  assert.match(buildComparisonInsights(rows, algoInfo).summary, /BFS, A\* and Greedy/);
 });

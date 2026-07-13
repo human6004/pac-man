@@ -15,7 +15,7 @@ function HorizontalBars({ title, description, rows, statKey, unit, color, algoIn
       <p>{description}</p>
       <svg viewBox={`0 0 ${W} ${height}`} role="img" aria-labelledby={`${statKey}-title ${statKey}-desc`}>
         <title id={`${statKey}-title`}>{title}</title>
-        <desc id={`${statKey}-desc`}>{description}. Giá trị thấp hơn tốt hơn.</desc>
+        <desc id={`${statKey}-desc`}>{description}. Lower is better.</desc>
         {rows.map((row, index) => {
           const value = values[index];
           const y = index * ROW_H + 8;
@@ -39,8 +39,8 @@ export function CompareCharts({ rows, algoInfo }) {
   return (
     <div className="comparison-bars">
       <HorizontalBars
-        title="Mức mở rộng trạng thái"
-        description="Số node được lấy khỏi frontier để xử lý"
+        title="State expansion"
+        description="Number of nodes taken from the frontier for processing"
         rows={valid}
         statKey="nodes_expanded"
         unit=""
@@ -48,8 +48,8 @@ export function CompareCharts({ rows, algoInfo }) {
         algoInfo={algoInfo}
       />
       <HorizontalBars
-        title="Thời gian lần chạy"
-        description="Runtime đo trên máy hiện tại, chỉ dùng tham khảo"
+        title="Run time"
+        description="Runtime measured on the current machine, for reference only"
         rows={valid}
         statKey="time_ms"
         unit=" ms"

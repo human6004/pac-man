@@ -1,4 +1,4 @@
-// SearchTreePanel.jsx — Cây duyệt SVG dạng card tọa độ, đồng bộ từng bước.
+// SearchTreePanel.jsx — SVG search tree with coordinate cards, synced step by step.
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { clampZoom, fitZoom, layoutTree, MAX_ZOOM, MIN_ZOOM, ZOOM_STEP, zoomedScroll } from "./treeViewport.js";
@@ -56,11 +56,11 @@ function NodeCard({ node, state, problem }) {
   const opacity = NODE_OPACITY[state] ?? 1;
   const [r, c] = node.pos || ["?", "?"];
   const eatAll = problem === "eat_all";
-  const foodLeft = node.food?.length ?? 0; // F = số thức ăn còn lại tại node
+  const foodLeft = node.food?.length ?? 0; // F = food remaining at this node
   const foodSet = (node.food || []).map(([fr, fc]) => `(${fr},${fc})`).join(", ");
   const tooltip = eatAll
-    ? `Trạng thái ((${r},${c}), ${foodLeft})\nF là số thức ăn còn lại: ${foodLeft}\n{${foodSet}}`
-    : `Trạng thái p=(${r},${c})`;
+    ? `State ((${r},${c}), ${foodLeft})\nF is the food remaining: ${foodLeft}\n{${foodSet}}`
+    : `State p=(${r},${c})`;
   const label = state === "current" ? "CURRENT" : state === "open" ? "OPEN" : "CLOSED";
   const visitLabel = state === "closed" && node.expanded_order != null ? `#${node.expanded_order}` : "";
 
@@ -139,7 +139,7 @@ function TreeSvg({ tree, step, problem, heightClass = "tree-viewport", smoothFoc
     });
   }, [focusId, focusX, focusY, zoom, followCurrent, smoothFocus]);
 
-  if (!laid) return <p className="empty-state">Không thể dựng cây tìm kiếm.</p>;
+  if (!laid) return <p className="empty-state">Cannot build the search tree.</p>;
 
   const startDrag = (e) => {
     if (e.pointerType === "mouse" && e.button !== 0) return;
@@ -269,18 +269,18 @@ function TreeSvg({ tree, step, problem, heightClass = "tree-viewport", smoothFoc
 
   return (
     <>
-      {!compact && <div className="tree-toolbar" role="toolbar" aria-label="Điều khiển cây tìm kiếm">
-        <button type="button" className="tool-btn" aria-label="Thu nhỏ cây" disabled={zoom <= MIN_ZOOM} onClick={() => zoomAround(zoomRef.current - ZOOM_STEP)}>
+      {!compact && <div className="tree-toolbar" role="toolbar" aria-label="Search tree controls">
+        <button type="button" className="tool-btn" aria-label="Zoom out tree" disabled={zoom <= MIN_ZOOM} onClick={() => zoomAround(zoomRef.current - ZOOM_STEP)}>
           −
         </button>
         <output className="tree-zoom" aria-live="polite">
           {Math.round(zoom * 100)}%
         </output>
-        <button type="button" className="tool-btn" aria-label="Phóng to cây" disabled={zoom >= MAX_ZOOM} onClick={() => zoomAround(zoomRef.current + ZOOM_STEP)}>
+        <button type="button" className="tool-btn" aria-label="Zoom in tree" disabled={zoom >= MAX_ZOOM} onClick={() => zoomAround(zoomRef.current + ZOOM_STEP)}>
           +
         </button>
         <button type="button" className="tool-btn tool-btn-text" onClick={fit}>
-          Vừa khung
+          Fit
         </button>
         <button type="button" className="tool-btn tool-btn-text" onClick={() => zoomAround(1)}>
           100%
@@ -291,7 +291,7 @@ function TreeSvg({ tree, step, problem, heightClass = "tree-viewport", smoothFoc
           aria-pressed={followCurrent}
           onClick={() => setFollowCurrent(true)}
         >
-          Theo CURRENT
+          Follow CURRENT
         </button>
       </div>}
       <div
@@ -301,7 +301,7 @@ function TreeSvg({ tree, step, problem, heightClass = "tree-viewport", smoothFoc
         }`}
         tabIndex={0}
         role="region"
-        aria-label="Cây tìm kiếm. Dùng phím mũi tên để di chuyển, cộng hoặc trừ để thu phóng."
+        aria-label="Search tree. Use arrow keys to pan, plus or minus to zoom."
         onPointerDown={startDrag}
         onPointerMove={drag}
         onPointerUp={stopDrag}
@@ -316,8 +316,8 @@ function TreeSvg({ tree, step, problem, heightClass = "tree-viewport", smoothFoc
           viewBox={`0 0 ${laid.width} ${laid.height}`}
           style={{ minWidth: laid.width * zoom, display: "block", margin: "0 auto" }}
         >
-          <title>Cây duyệt theo từng bước</title>
-          <desc>Node được giữ nguyên vị trí. OPEN đang chờ, CURRENT đang được mở rộng, CLOSED đã xử lý xong.</desc>
+          <title>Step-by-step search tree</title>
+          <desc>Nodes keep their position. OPEN is waiting, CURRENT is being expanded, CLOSED is done.</desc>
           {laid.all.flatMap((n) =>
             n.kids.filter((child) => cls.get(n.id) !== "hidden" && cls.get(child.id) !== "hidden").map((child) => (
               <line
@@ -367,19 +367,19 @@ export function SearchTreePanel({ tree, active, step, treeMeta, problem, smoothF
     <section className={`lab-panel tree-panel ${compact ? "is-compact" : ""}`} aria-labelledby="tree-title">
       <div className="panel-heading">
         <div>
-          <p className="section-kicker">Không gian tìm kiếm</p>
-          <h2 id="tree-title">Cây duyệt từng bước</h2>
+          <p className="section-kicker">Search space</p>
+          <h2 id="tree-title">Step-by-step search tree</h2>
         </div>
         {treeMeta?.truncated && (
           <span className="status-note">
-            Giới hạn {treeMeta.limit} node
+            Limited to {treeMeta.limit} nodes
           </span>
         )}
       </div>
       {!active ? (
-        <p className="empty-state">Cây tìm kiếm chỉ có trong chế độ tìm kiếm tĩnh.</p>
+        <p className="empty-state">The search tree is only available in static search mode.</p>
       ) : !tree || tree.length === 0 ? (
-        <p className="empty-state">Chọn cấu hình rồi bấm Bắt đầu hoặc Bước tiếp để dựng cây.</p>
+        <p className="empty-state">Choose a configuration then press Start or Next step to build the tree.</p>
       ) : (
         <>
           <TreeCounters tree={tree} step={step} />
@@ -391,7 +391,7 @@ export function SearchTreePanel({ tree, active, step, treeMeta, problem, smoothF
   );
 }
 
-// Chú giải ý nghĩa màu node + g/h/f cho người xem không chuyên.
+// Legend explaining node colors + g/h/f for non-expert viewers.
 function LegendItem({ color, children }) {
   return (
     <span className="inline-flex items-center gap-1.5">
@@ -405,15 +405,15 @@ function TreeLegend({ problem }) {
   return (
     <div className="tree-legend">
       <div>
-        <LegendItem color="var(--state-open)">OPEN: đang chờ</LegendItem>
-        <LegendItem color="var(--state-current)">CURRENT: đang mở rộng</LegendItem>
-        <LegendItem color="var(--state-closed)">CLOSED: đã xử lý</LegendItem>
+        <LegendItem color="var(--state-open)">OPEN: waiting</LegendItem>
+        <LegendItem color="var(--state-current)">CURRENT: expanding</LegendItem>
+        <LegendItem color="var(--state-closed)">CLOSED: done</LegendItem>
       </div>
       <div>
-        <span style={{ color: "var(--color-g)" }}>g = chi phí đã đi</span>
-        <span style={{ color: "var(--color-h)" }}>h = chi phí ước lượng</span>
+        <span style={{ color: "var(--color-g)" }}>g = cost so far</span>
+        <span style={{ color: "var(--color-h)" }}>h = estimated cost</span>
         <span style={{ color: "var(--color-f)" }}>f = g + h</span>
-        {problem === "eat_all" && <span>F = số thức ăn còn lại; focus node để xem đầy đủ</span>}
+        {problem === "eat_all" && <span>F = food remaining; focus a node to see full detail</span>}
       </div>
     </div>
   );
@@ -425,7 +425,7 @@ export function SearchTreePreview({ tree, title, subtitle, treeMeta, problem, st
       <section className="lab-panel tree-preview">
         <h3>{title}</h3>
         {subtitle && <p>{subtitle}</p>}
-        <p className="empty-state">Không có cây tìm kiếm.</p>
+        <p className="empty-state">No search tree.</p>
       </section>
     );
   }

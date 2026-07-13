@@ -1,42 +1,42 @@
 const LEGEND = [
   ["Pac-Man", "var(--color-pac)", true],
-  ["Thức ăn", "var(--color-pellet)", true],
+  ["Food", "var(--color-pellet)", true],
   ["Power pellet", "#FFF04D", true],
   ["Ghost", "var(--state-current)", false],
-  ["Ô đã duyệt", "var(--color-g)", false],
-  ["Đường đi", "var(--color-pac)", false],
+  ["Explored cell", "var(--color-g)", false],
+  ["Path", "var(--color-pac)", false],
 ];
 
 export function Cabinet({ children, tab, onTabChange, soundOn, onToggleSound, theme, onToggleTheme }) {
   return (
     <div className="app-shell">
-      <a className="skip-link" href="#main-content">Bỏ qua đến nội dung chính</a>
+      <a className="skip-link" href="#main-content">Skip to main content</a>
       <header className="app-header">
         <div className="brand-block">
           <strong>PAC-MAN</strong>
           <span>AI Search Lab</span>
         </div>
-        <nav className="top-tabs" role="tablist" aria-label="Khu vực làm việc">
+        <nav className="top-tabs" role="tablist" aria-label="Workspace">
           <button type="button" role="tab" aria-selected={tab === "play"} className={tab === "play" ? "is-active" : ""} onClick={() => onTabChange("play")}>
-            Chạy
+            Run
           </button>
           <button type="button" role="tab" aria-selected={tab === "compare"} className={tab === "compare" ? "is-active" : ""} onClick={() => onTabChange("compare")}>
-            So sánh
+            Compare
           </button>
         </nav>
         <div className="header-actions">
           <button type="button" className="text-toggle" aria-pressed={soundOn} onClick={onToggleSound}>
-            Âm thanh: {soundOn ? "Bật" : "Tắt"}
+            Sound: {soundOn ? "On" : "Off"}
           </button>
           <button type="button" className="text-toggle" onClick={onToggleTheme}>
-            Giao diện: {theme === "dark" ? "Tối" : "Sáng"}
+            Theme: {theme === "dark" ? "Dark" : "Light"}
           </button>
         </div>
       </header>
 
       <main id="main-content" className="app-content">{children}</main>
 
-      <footer className="app-legend" aria-label="Chú giải bản đồ">
+      <footer className="app-legend" aria-label="Map legend">
         {LEGEND.map(([label, color, round]) => (
           <span key={label}>
             <i style={{ background: color, borderRadius: round ? "50%" : "3px" }} />

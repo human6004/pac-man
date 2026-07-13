@@ -1,10 +1,10 @@
-// useRunner.js — Máy điều phối chạy thuật toán tìm kiếm tĩnh.
+// useRunner.js — Coordinator for running static search algorithms.
 //
-// Nhận một ref tới PacmanRenderer. Cung cấp chạy/pause/step/reset/compare cho
-// tìm kiếm tĩnh + state hiển thị (status, stats, compareRows, busy).
+// Takes a ref to PacmanRenderer. Provides run/pause/step/reset/compare for
+// static search + display state (status, stats, compareRows, busy).
 //
-// Renderer chạy imperative (không re-render qua React) để animation mượt; hook
-// chỉ giữ các state cần hiển thị trên panel.
+// The renderer runs imperatively (no re-render through React) for smooth
+// animation; the hook only holds the state that needs to show on the panel.
 
 import { useCallback, useRef, useState } from "react";
 import { Api } from "../api/client";
@@ -44,6 +44,13 @@ function expandedTreeNodes(solve) {
     .sort((a, b) => a.expanded_order - b.expanded_order);
 }
 
+// Total static steps: one per expanded node + one final step that walks the
+// whole solution path to the goal at once (not one click per cell).
+function staticTotal(solve) {
+  const path = solve?.path || [];
+  return expandedTreeNodes(solve).length + (path.length ? 1 : 0);
+}
+
 function lastTreeStep(tree) {
   const steps = (tree || [])
     .map((n) => n.expanded_order)
@@ -56,31 +63,31 @@ function compareTotal(rows) {
 }
 
 export function useRunner(rendererRef) {
-  const [status, setStatus] = useState("Sẵn sàng");
+  const [status, setStatus] = useState("Ready");
   const [phase, setPhase] = useState("idle");
   const [stats, setStats] = useState(null);     // {nodes_expanded, time_ms, ...}
   const [compareRows, setCompareRows] = useState([]);
   const [compareTreeStep, setCompareTreeStep] = useState(null);
   const [tree, setTree] = useState([]);
   const [treeMeta, setTreeMeta] = useState(EMPTY_TREE_META);
-  const [searchStep, setSearchStep] = useState(0); // số node cây đã hiện (đồng bộ board)
+  const [searchStep, setSearchStep] = useState(0); // number of tree nodes shown so far (synced with board)
   const [busy, setBusy] = useState(false);
   const [paused, setPaused] = useState(false);
   const [stepState, setStepState] = useState(EMPTY_STEP_STATE);
   const [compareStepState, setCompareStepState] = useState(EMPTY_STEP_STATE);
 
-  // Cờ điều khiển animation (ref để không gây re-render).
+  // Animation control flags (refs so they don't trigger re-renders).
   const stopRef = useRef(false);
   const pausedRef = useRef(false);
   const runningRef = useRef(false);
   const abortRef = useRef(null);
   const operationRef = useRef(0);
 
-  // Lưu kết quả lần chạy gần nhất cho chế độ "Từng bước".
+  // Store the result of the latest run for "Step by step" mode.
   const lastSolveRef = useRef(null);
   const lastSolveKeyRef = useRef(null);
   const lastCompareKeyRef = useRef(null);
-  // Bộ đếm tổng số bước đã đi (tất định) cho step tới/lui ở chế độ tĩnh.
+  // Counter for total steps taken (deterministic) for step forward/back in static mode.
   const staticStepRef = useRef(0);
   const compareStepRef = useRef(0);
   const compareTotalRef = useRef(0);
@@ -117,7 +124,7 @@ export function useRunner(rendererRef) {
     setPaused(false);
   }, []);
 
-  // Gắn hook hiệu ứng ăn food vào renderer (gọi 1 lần khi có renderer).
+  // Wire the food-eating effect hook into the renderer (called once when renderer is available).
   const wireRenderer = useCallback(() => {
     const r = rendererRef.current;
     if (!r) return;
@@ -128,11 +135,11 @@ export function useRunner(rendererRef) {
     };
   }, [rendererRef]);
 
-  // ---- Chạy chế độ tĩnh ----
+  // ---- Run static mode ----
   const solveAndAnimate = useCallback(
     async (cfg, operation) => {
       const r = rendererRef.current;
-      setStatus(`Đang chuẩn bị ${cfg.algorithm.toUpperCase()}`);
+      setStatus(`Preparing ${cfg.algorithm.toUpperCase()}`);
       const result = await Api.solve({
         map: cfg.map,
         algorithm: cfg.algorithm,
@@ -146,11 +153,11 @@ export function useRunner(rendererRef) {
       setTree(result.tree || []);
       setTreeMeta({ truncated: !!result.tree_truncated, limit: result.tree_limit || 0 });
       setPhase("replaying");
-      setStatus("Đang duyệt cây tìm kiếm");
+      setStatus("Traversing search tree");
 
       if (!result.found) {
         setStats(result.stats);
-        setStatus("Không tìm thấy lời giải");
+        setStatus("No solution found");
         setPhase("complete");
         const lastNode = expandedTreeNodes(result).at(-1);
         r.visited = [];
@@ -172,19 +179,19 @@ export function useRunner(rendererRef) {
       );
       if (shouldStop() || !isCurrentOperation(operation.id)) return;
       r.reset();
-      setStatus("Đang mô phỏng đường đi");
+      setStatus("Replaying path");
       await r.animatePath(result.path, delay, shouldStop, shouldPause);
       if (shouldStop() || !isCurrentOperation(operation.id)) return;
 
       setStats(result.stats);
-      setStatus("Hoàn tất");
+      setStatus("Complete");
       setPhase("complete");
       audio.win();
     },
     [rendererRef, shouldStop, shouldPause, stepDelay, isCurrentOperation]
   );
 
-  // ---- Các hành động công khai ----
+  // ---- Public actions ----
   const runStatic = useCallback(
     async (cfg) => {
       if (runningRef.current) return;
@@ -213,7 +220,7 @@ export function useRunner(rendererRef) {
         await solveAndAnimate(cfg, operation);
       } catch (e) {
         if (isCurrentOperation(operation.id) && !isAbortError(e)) {
-          setStatus("Lỗi: " + e.message);
+          setStatus("Error: " + e.message);
           setPhase("error");
           console.error(e);
         }
@@ -229,7 +236,7 @@ export function useRunner(rendererRef) {
     pausedRef.current = !pausedRef.current;
     setPaused(pausedRef.current);
     setPhase(pausedRef.current ? "paused" : "replaying");
-    setStatus(pausedRef.current ? "Tạm dừng" : "Đang chạy");
+    setStatus(pausedRef.current ? "Paused" : "Running");
   }, []);
 
   const reset = useCallback(() => {
@@ -256,13 +263,13 @@ export function useRunner(rendererRef) {
     setTreeMeta(EMPTY_TREE_META);
     setBusy(false);
     setPhase("idle");
-    setStatus("Sẵn sàng");
+    setStatus("Ready");
   }, [rendererRef, stopAnimation]);
 
-  // Vẽ lại trạng thái tĩnh TẤT ĐỊNH tại một bước cụ thể (dùng cho tới/lui).
-  // step trong [0, treeNodes.length + path.length]:
-  //   0..treeNodes.length   -> pha Pac-man đứng trên node đang chọn trong cây
-  //   >treeNodes.length      -> pha đi dọc path
+  // Redraw the DETERMINISTIC static state at a specific step (used for step forward/back).
+  // step in [0, treeNodes.length + path.length]:
+  //   0..treeNodes.length   -> phase where Pac-man stands on the selected tree node
+  //   >treeNodes.length      -> phase walking along the path
   const renderStaticAt = useCallback(
     (step) => {
       const r = rendererRef.current;
@@ -270,17 +277,17 @@ export function useRunner(rendererRef) {
       if (!r || !solve) return;
       const treeNodes = expandedTreeNodes(solve);
       const path = solve.path || [];
-      const total = treeNodes.length + path.length;
+      const total = staticTotal(solve);
       const s = Math.max(0, Math.min(step, total));
       staticStepRef.current = s;
       setStepState({ current: s, total, complete: s === total });
-      setSearchStep(Math.min(s, treeNodes.length)); // cây chỉ mọc trong pha reveal
+      setSearchStep(Math.min(s, treeNodes.length)); // tree only grows during the reveal phase
 
-      // Dựng lại từ đầu để lùi được (food/pellet reset về ban đầu).
+      // Rebuild from scratch so we can step back (food/pellets reset to initial state).
       r.reset();
 
       if (s <= treeNodes.length) {
-        // Pha 1: Pac-man đứng trên node đang được chọn trong cây.
+        // Phase 1: Pac-man stands on the currently selected tree node.
         const node = treeNodes[s - 1];
         r.visited = [];
         r.path = [];
@@ -288,35 +295,34 @@ export function useRunner(rendererRef) {
           r.setSearchTimeline(treeNodes.slice(0, s));
         }
         r.draw();
-        setStatus(s === 0 ? "Bắt đầu" : `Đang duyệt node ${s}/${treeNodes.length}`);
+        setStatus(s === 0 ? "Start" : `Traversing node ${s}/${treeNodes.length}`);
         setPhase(s === total ? "complete" : "paused");
         return;
       }
 
-      // Pha 2: đã expand hết, đi dọc path tới ô thứ (walk).
-      const walk = s - treeNodes.length; // số ô path đã đi (1..path.length)
+      // Phase 2 (single step): go straight to the goal. Draw the full route from
+      // the start to the target and move Pac-man there at once, eating every
+      // food/pellet along the way.
       r.visited = [];
-      r.path = [];
-      const idx = walk - 1;
-      const cur = path[idx];
-      // Ăn food/pellet dọc các ô đã đi qua.
-      for (let i = 1; i <= idx; i++) {
+      r.path = path.slice();
+      for (let i = 1; i < path.length; i++) {
         r.food.delete(r._key(path[i]));
         r.pellets.delete(r._key(path[i]));
       }
-      const dir = idx > 0 ? r._dirOf(path[idx - 1], cur) : "RIGHT";
-      r.setPacman(cur, dir);
+      const goal = path.at(-1);
+      const dir = path.length > 1 ? r._dirOf(path.at(-2), goal) : "RIGHT";
+      r.setPacman(goal, dir);
       r._mouthPhase += 0.9;
       r.draw();
-      setStatus(`Đang chạy đường đi ${walk}/${path.length}`);
-      setPhase(s === total ? "complete" : "paused");
+      setStatus("Solution path");
+      setPhase("complete");
     },
     [rendererRef]
   );
 
   const stepStatic = useCallback(
     async (cfg, dir = 1) => {
-      if (runningRef.current) return; // đang chạy auto -> không cho step chồng
+      if (runningRef.current) return; // auto-run in progress -> don't allow overlapping step
       const r = rendererRef.current;
       const key = staticKey(cfg);
       if (lastSolveKeyRef.current && lastSolveKeyRef.current !== key) {
@@ -328,13 +334,13 @@ export function useRunner(rendererRef) {
         setTree([]);
         setTreeMeta(EMPTY_TREE_META);
       }
-      // Lần đầu (chưa solve): gọi API, dựng cây, đứng ở bước 0.
+      // First time (not solved yet): call the API, build the tree, land on step 0.
       if (!lastSolveRef.current) {
-        if (dir < 0) return; // chưa có gì để lùi
+        if (dir < 0) return; // nothing to step back to yet
         const operation = beginOperation();
         setBusy(true);
         setPhase("solving");
-        setStatus("Đang chuẩn bị bước đầu");
+        setStatus("Preparing first step");
         try {
           const result = await Api.solve({
             map: cfg.map,
@@ -347,7 +353,7 @@ export function useRunner(rendererRef) {
           lastSolveRef.current = result;
           lastSolveKeyRef.current = key;
           staticStepRef.current = 0;
-          const total = expandedTreeNodes(result).length + (result.path || []).length;
+          const total = staticTotal(result);
           setStepState({ current: 0, total, complete: !result.found });
           setSearchStep(0);
           setTree(result.tree || []);
@@ -355,7 +361,7 @@ export function useRunner(rendererRef) {
           r.reset();
           if (!result.found) {
             setStats(result.stats);
-            setStatus("Không tìm thấy lời giải");
+            setStatus("No solution found");
             setPhase("complete");
             return;
           }
@@ -363,7 +369,7 @@ export function useRunner(rendererRef) {
           renderStaticAt(1);
         } catch (e) {
           if (isCurrentOperation(operation.id) && !isAbortError(e)) {
-            setStatus("Lỗi: " + e.message);
+            setStatus("Error: " + e.message);
             setPhase("error");
             console.error(e);
           }
@@ -374,14 +380,14 @@ export function useRunner(rendererRef) {
       }
 
       const solve = lastSolveRef.current;
-      const total = expandedTreeNodes(solve).length + (solve.path || []).length;
+      const total = staticTotal(solve);
       const next = staticStepRef.current + dir;
       if (next < 0) {
-        setStatus("Đã ở bước đầu tiên");
+        setStatus("Already at first step");
         return;
       }
       if (next > total) {
-        setStatus("Đã đến cuối đường đi");
+        setStatus("Reached end of path");
         return;
       }
       renderStaticAt(next);
@@ -393,14 +399,14 @@ export function useRunner(rendererRef) {
   const compare = useCallback(async (cfg) => {
     const algos = cfg.compareAlgos || [];
     if (algos.length < 2) {
-      setStatus("Chọn ít nhất 2 thuật toán để so sánh");
+      setStatus("Select at least 2 algorithms to compare");
       setPhase("error");
       return;
     }
     const operation = beginOperation();
     setBusy(true);
     setPhase("solving");
-    setStatus(`Đang so sánh ${algos.length} thuật toán`);
+    setStatus(`Comparing ${algos.length} algorithms`);
     try {
       const result = await Api.compare({
         map: cfg.map,
@@ -416,11 +422,11 @@ export function useRunner(rendererRef) {
       compareStepRef.current = compareTotalRef.current;
       setCompareStepState({ current: compareStepRef.current, total: compareTotalRef.current, complete: true });
       setCompareTreeStep(null);
-      setStatus("So sánh hoàn tất");
+      setStatus("Comparison complete");
       setPhase("complete");
     } catch (e) {
       if (isCurrentOperation(operation.id) && !isAbortError(e)) {
-        setStatus("Lỗi so sánh: " + e.message);
+        setStatus("Comparison error: " + e.message);
         setPhase("error");
         console.error(e);
       }
@@ -431,7 +437,7 @@ export function useRunner(rendererRef) {
 
   const loadCompareRows = useCallback(async (cfg, operation) => {
     const algos = cfg.compareAlgos || [];
-    if (algos.length < 2) throw new Error("Chọn ít nhất 2 thuật toán để so sánh");
+    if (algos.length < 2) throw new Error("Select at least 2 algorithms to compare");
     const result = await Api.compare({
       map: cfg.map,
       algorithms: algos,
@@ -468,7 +474,7 @@ export function useRunner(rendererRef) {
     compareStepRef.current = s;
     setCompareTreeStep(s);
     setCompareStepState({ current: s, total, complete: s === total });
-    setStatus(s === 0 ? "Bắt đầu so sánh cây" : `Bước cây so sánh ${s}/${total}`);
+    setStatus(s === 0 ? "Start comparison tree" : `Comparison tree step ${s}/${total}`);
   }, []);
 
   const runCompareTree = useCallback(async (cfg) => {
@@ -480,7 +486,7 @@ export function useRunner(rendererRef) {
     setPaused(false);
     setBusy(true);
     setPhase("solving");
-    setStatus("Đang chuẩn bị cây so sánh");
+    setStatus("Preparing comparison tree");
     try {
       const rows = await loadCompareRows(cfg, operation);
       if (!rows || !isCurrentOperation(operation.id)) return;
@@ -495,12 +501,12 @@ export function useRunner(rendererRef) {
         await waitForCompareTick(delay);
       }
       if (!isCurrentOperation(operation.id)) return;
-      setStatus("Cây so sánh hoàn tất");
+      setStatus("Comparison tree complete");
       setPhase("complete");
       audio.win();
     } catch (e) {
       if (isCurrentOperation(operation.id) && !isAbortError(e)) {
-        setStatus("Lỗi so sánh: " + e.message);
+        setStatus("Comparison error: " + e.message);
         setPhase("error");
         console.error(e);
       }
@@ -517,7 +523,7 @@ export function useRunner(rendererRef) {
       const operation = beginOperation();
       setBusy(true);
       setPhase("solving");
-      setStatus("Đang chuẩn bị cây so sánh");
+      setStatus("Preparing comparison tree");
       try {
         const rows = await loadCompareRows(cfg, operation);
         if (!rows || !isCurrentOperation(operation.id)) return;
@@ -526,7 +532,7 @@ export function useRunner(rendererRef) {
         setCompareStepState({ current: 0, total: compareTotalRef.current, complete: compareTotalRef.current === 0 });
       } catch (e) {
         if (isCurrentOperation(operation.id) && !isAbortError(e)) {
-          setStatus("Lỗi so sánh: " + e.message);
+          setStatus("Comparison error: " + e.message);
           setPhase("error");
           console.error(e);
         }
@@ -536,11 +542,11 @@ export function useRunner(rendererRef) {
     }
     const next = compareStepRef.current + dir;
     if (next < 0) {
-      setStatus("Đã ở bước so sánh đầu tiên");
+      setStatus("Already at first comparison step");
       return;
     }
     if (next > compareTotalRef.current) {
-      setStatus("Cây so sánh hoàn tất");
+      setStatus("Comparison tree complete");
       return;
     }
     renderCompareAt(next);
