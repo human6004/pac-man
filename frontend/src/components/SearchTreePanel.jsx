@@ -1,7 +1,7 @@
 // SearchTreePanel.jsx — Cây duyệt SVG dạng card tọa độ, đồng bộ từng bước.
 
-import { useEffect, useRef, useState } from "react";
-import { clampZoom, fitZoom, MAX_ZOOM, MIN_ZOOM, ZOOM_STEP, zoomedScroll } from "./treeViewport.js";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { clampZoom, fitZoom, layoutTree, MAX_ZOOM, MIN_ZOOM, ZOOM_STEP, zoomedScroll } from "./treeViewport.js";
 
 const NODE_W = 122;
 const NODE_H = 94;
@@ -9,9 +9,9 @@ const H_GAP = 30;
 const V_GAP = 50;
 const PAD = 16;
 const NODE_COLOR = {
-  closed: "#8891b8",
-  current: "#FF3B3B",
-  open: "#2121DE",
+  closed: "var(--state-closed)",
+  current: "var(--state-current)",
+  open: "var(--state-open)",
 };
 
 const NODE_OPACITY = {
@@ -47,95 +47,47 @@ function treeState(tree, step) {
   return { byId, cls };
 }
 
-function visibleTree(tree, cls) {
-  return tree.filter((n) => cls.get(n.id) !== "hidden");
-}
-
-function buildTree(nodes) {
-  const byId = new Map(nodes.map((n) => [n.id, { ...n, kids: [] }]));
-  let root = null;
-  for (const n of byId.values()) {
-    if (n.parent == null) root = n;
-    else byId.get(n.parent)?.kids.push(n);
-  }
-  return { byId, root };
-}
-
-function layout(nodes) {
-  const { byId, root } = buildTree(nodes);
-  if (!root) return null;
-  let leaf = 0;
-  const stepX = NODE_W + H_GAP;
-  const stepY = NODE_H + V_GAP;
-
-  const place = (node, depth) => {
-    node.y = PAD + depth * stepY;
-    if (node.kids.length === 0) {
-      node.x = PAD + leaf * stepX;
-      leaf++;
-    } else {
-      for (const child of node.kids) place(child, depth + 1);
-      node.x = (node.kids[0].x + node.kids[node.kids.length - 1].x) / 2;
-    }
-  };
-  place(root, 0);
-
-  const all = [...byId.values()];
-  const maxDepth = all.reduce((max, n) => Math.max(max, (n.y - PAD) / stepY), 0);
-  return {
-    all,
-    width: PAD * 2 + Math.max(1, leaf) * stepX - H_GAP,
-    height: PAD * 2 + (maxDepth + 1) * stepY - V_GAP,
-  };
-}
-
 function fmt(v) {
-  return Number.isFinite(v) ? String(Math.round(v * 100) / 100) : "—";
+  return Number.isFinite(v) ? String(Math.round(v * 100) / 100) : "-";
 }
 
-function foodMask(food, universe) {
-  if (!universe.length) return "∅";
-  const remaining = new Set((food || []).map(([r, c]) => `${r},${c}`));
-  const bits = universe.map(([r, c]) => (remaining.has(`${r},${c}`) ? "1" : "0")).join("");
-  return `0x${BigInt(`0b${bits}`).toString(16).padStart(Math.ceil(bits.length / 4), "0")}`;
-}
-
-function NodeCard({ node, state, problem, foodUniverse }) {
+function NodeCard({ node, state, problem }) {
   const border = NODE_COLOR[state] || "#8891b8";
   const opacity = NODE_OPACITY[state] ?? 1;
   const [r, c] = node.pos || ["?", "?"];
   const eatAll = problem === "eat_all";
-  const mask = eatAll ? foodMask(node.food, foodUniverse) : null;
+  const foodLeft = node.food?.length ?? 0; // F = số thức ăn còn lại tại node
   const foodSet = (node.food || []).map(([fr, fc]) => `(${fr},${fc})`).join(", ");
   const tooltip = eatAll
-    ? `State (p,F)\np=(${r},${c})\nF=${foodSet ? `{${foodSet}}` : "∅"}\n|F|=${node.food?.length ?? 0}; mask=${mask}`
-    : `State p=(${r},${c})`;
+    ? `Trạng thái ((${r},${c}), ${foodLeft})\nF là số thức ăn còn lại: ${foodLeft}\n{${foodSet}}`
+    : `Trạng thái p=(${r},${c})`;
   const label = state === "current" ? "CURRENT" : state === "open" ? "OPEN" : "CLOSED";
   const visitLabel = state === "closed" && node.expanded_order != null ? `#${node.expanded_order}` : "";
 
   return (
-    <g transform={`translate(${node.x},${node.y})`} opacity={opacity} role="img" aria-label={tooltip}>
+    <g
+      transform={`translate(${node.x},${node.y})`}
+      opacity={opacity}
+      role="img"
+      tabIndex={state === "current" ? 0 : undefined}
+      aria-label={tooltip}
+    >
       <title>{tooltip}</title>
-      <rect width={NODE_W} height={NODE_H} rx="6" fill="#07070f" stroke={border} strokeWidth={state === "current" ? 2.8 : 1.5} />
-      <rect x="0" y="0" width={NODE_W} height="22" rx="6" fill="#0f1230" />
+      <rect width={NODE_W} height={NODE_H} rx="6" fill="var(--tree-node)" stroke={border} strokeWidth={state === "current" ? 2.8 : 1.5} />
+      <rect x="0" y="0" width={NODE_W} height="22" rx="6" fill="var(--tree-node-head)" />
       <text x="7" y="14" fontSize="11" fontWeight="800" fontFamily="var(--font-arcade)" fill={border}>
         {visitLabel}
       </text>
-      <text x={NODE_W - 7} y="14" textAnchor="end" fontSize="10" fontWeight="800" fontFamily="var(--font-arcade)" fill="#cbd0e6">
+      <text x={NODE_W - 7} y="14" textAnchor="end" fontSize="10" fontWeight="800" fontFamily="var(--font-ui)" fill="var(--text-primary)">
         {label}
       </text>
-      <text x={NODE_W / 2} y={eatAll ? 42 : 48} textAnchor="middle" fontSize="24" fontFamily="var(--font-term)" fill="var(--color-pac)">
-        ({r},{c})
+      <text x={NODE_W / 2} y={eatAll ? 46 : 48} textAnchor="middle" fontSize={eatAll ? 18 : 24} fontFamily="var(--font-term)" fill="var(--color-pac)">
+        {eatAll ? `((${r},${c}), ${foodLeft})` : `(${r},${c})`}
       </text>
-      <text x={NODE_W / 2} y={eatAll ? 59 : 68} textAnchor="middle" fontSize="14" fontFamily="var(--font-term)" fill="var(--color-inky)">
+      <text x={NODE_W / 2} y={eatAll ? 64 : 68} textAnchor="middle" fontSize="14" fontFamily="var(--font-term)" fill="var(--color-inky)">
         {node.action || "START"}
       </text>
-      {eatAll && (
-        <text x={NODE_W / 2} y="75" textAnchor="middle" fontSize="11" fontFamily="var(--font-term)" fill="#ffb852">
-          F={mask} · {node.food?.length ?? 0}
-        </text>
-      )}
-      <text x={NODE_W / 2} y="90" textAnchor="middle" fontSize="13" fontFamily="var(--font-term)" fill="#cbd0e6">
+      <text x={NODE_W / 2} y="90" textAnchor="middle" fontSize="13" fontFamily="var(--font-term)" fill="var(--text-primary)">
         <tspan fill="var(--color-g)">g={fmt(node.g)}</tspan>{"  "}
         <tspan fill="var(--color-h)">h={fmt(node.h)}</tspan>{"  "}
         <tspan fill="var(--color-f)">f={fmt(node.f)}</tspan>
@@ -151,18 +103,23 @@ function lastTreeStep(tree) {
   return steps.length ? Math.max(...steps) + 1 : 0;
 }
 
-function TreeSvg({ tree, step, problem, heightClass = "h-[460px]" }) {
+function TreeSvg({ tree, step, problem, heightClass = "tree-viewport", smoothFocus = false, compact = false }) {
   const scrollerRef = useRef(null);
   const svgRef = useRef(null);
   const dragRef = useRef(null);
   const skipFocusScrollRef = useRef(false);
   const zoomRef = useRef(1);
   const [dragging, setDragging] = useState(false);
+  const [followCurrent, setFollowCurrent] = useState(true);
   const [zoom, setZoom] = useState(1);
   const { cls } = treeState(tree, step);
-  const visible = visibleTree(tree, cls);
-  const laid = layout(visible);
-  const foodUniverse = tree.find((n) => n.parent == null)?.food || [];
+  const laid = useMemo(() => layoutTree(tree, {
+    nodeWidth: NODE_W,
+    nodeHeight: NODE_H,
+    horizontalGap: H_GAP,
+    verticalGap: V_GAP,
+    padding: PAD,
+  }), [tree]);
   const focusNode = laid?.all.find((n) => cls.get(n.id) === "current") || laid?.all[0];
   const focusId = focusNode?.id;
   const focusX = focusNode?.x;
@@ -170,7 +127,7 @@ function TreeSvg({ tree, step, problem, heightClass = "h-[460px]" }) {
 
   useEffect(() => {
     const scroller = scrollerRef.current;
-    if (!scroller || dragRef.current || focusX == null || focusY == null) return;
+    if (!scroller || !followCurrent || dragRef.current || focusX == null || focusY == null) return;
     if (skipFocusScrollRef.current) {
       skipFocusScrollRef.current = false;
       return;
@@ -178,11 +135,11 @@ function TreeSvg({ tree, step, problem, heightClass = "h-[460px]" }) {
     scroller.scrollTo({
       left: Math.max(0, focusX * zoom - scroller.clientWidth / 2 + (NODE_W * zoom) / 2),
       top: Math.max(0, focusY * zoom - scroller.clientHeight / 2 + (NODE_H * zoom) / 2),
-      behavior: "smooth",
+      behavior: smoothFocus && !window.matchMedia?.("(prefers-reduced-motion: reduce)").matches ? "smooth" : "auto",
     });
-  }, [focusId, focusX, focusY, zoom]);
+  }, [focusId, focusX, focusY, zoom, followCurrent, smoothFocus]);
 
-  if (!laid) return <p className="crt-label text-[13px]">Unable to build tree.</p>;
+  if (!laid) return <p className="empty-state">Không thể dựng cây tìm kiếm.</p>;
 
   const startDrag = (e) => {
     if (e.pointerType === "mouse" && e.button !== 0) return;
@@ -194,6 +151,7 @@ function TreeSvg({ tree, step, problem, heightClass = "h-[460px]" }) {
       left: scroller.scrollLeft,
       top: scroller.scrollTop,
     };
+    setFollowCurrent(false);
     setDragging(true);
     scroller.setPointerCapture?.(e.pointerId);
     e.preventDefault();
@@ -273,6 +231,7 @@ function TreeSvg({ tree, step, problem, heightClass = "h-[460px]" }) {
     const scroller = scrollerRef.current;
     if (!scroller) return;
     e.preventDefault();
+    setFollowCurrent(false);
 
     const rect = scroller.getBoundingClientRect();
     const pointerX = e.clientX - rect.left;
@@ -281,35 +240,74 @@ function TreeSvg({ tree, step, problem, heightClass = "h-[460px]" }) {
     zoomAround(zoomRef.current + direction * ZOOM_STEP, { x: pointerX, y: pointerY });
   };
 
+  const handleKeyDown = (e) => {
+    const scroller = scrollerRef.current;
+    if (!scroller) return;
+    const pan = 48;
+    const actions = {
+      ArrowUp: () => scroller.scrollBy({ top: -pan }),
+      ArrowDown: () => scroller.scrollBy({ top: pan }),
+      ArrowLeft: () => scroller.scrollBy({ left: -pan }),
+      ArrowRight: () => scroller.scrollBy({ left: pan }),
+      "+": () => zoomAround(zoomRef.current + ZOOM_STEP),
+      "=": () => zoomAround(zoomRef.current + ZOOM_STEP),
+      "-": () => zoomAround(zoomRef.current - ZOOM_STEP),
+      "0": () => zoomAround(1),
+    };
+    if (!actions[e.key]) return;
+    e.preventDefault();
+    setFollowCurrent(false);
+    actions[e.key]();
+  };
+
+  const fit = () => zoomAround(fitZoom(
+    scrollerRef.current?.clientWidth || 0,
+    scrollerRef.current?.clientHeight || 0,
+    laid.width,
+    laid.height
+  ));
+
   return (
     <>
-      <div className="mb-2 flex flex-wrap items-center justify-end gap-1" role="toolbar" aria-label="Search tree controls">
-        <button type="button" className="arcade-btn btn-mode-off min-w-9 !px-2 !py-1" aria-label="Zoom out" disabled={zoom <= MIN_ZOOM} onClick={() => zoomAround(zoomRef.current - ZOOM_STEP)}>
+      {!compact && <div className="tree-toolbar" role="toolbar" aria-label="Điều khiển cây tìm kiếm">
+        <button type="button" className="tool-btn" aria-label="Thu nhỏ cây" disabled={zoom <= MIN_ZOOM} onClick={() => zoomAround(zoomRef.current - ZOOM_STEP)}>
           −
         </button>
-        <output className="min-w-[58px] text-center font-term text-[15px] text-[color:var(--color-amber)]" aria-live="polite">
+        <output className="tree-zoom" aria-live="polite">
           {Math.round(zoom * 100)}%
         </output>
-        <button type="button" className="arcade-btn btn-mode-off min-w-9 !px-2 !py-1" aria-label="Zoom in" disabled={zoom >= MAX_ZOOM} onClick={() => zoomAround(zoomRef.current + ZOOM_STEP)}>
+        <button type="button" className="tool-btn" aria-label="Phóng to cây" disabled={zoom >= MAX_ZOOM} onClick={() => zoomAround(zoomRef.current + ZOOM_STEP)}>
           +
         </button>
-        <button type="button" className="arcade-btn btn-mode-off !px-3 !py-1" onClick={() => zoomAround(fitZoom(scrollerRef.current?.clientWidth || 0, scrollerRef.current?.clientHeight || 0, laid.width, laid.height))}>
-          Fit
+        <button type="button" className="tool-btn tool-btn-text" onClick={fit}>
+          Vừa khung
         </button>
-        <button type="button" className="arcade-btn btn-mode-off !px-3 !py-1" onClick={() => zoomAround(1)}>
+        <button type="button" className="tool-btn tool-btn-text" onClick={() => zoomAround(1)}>
           100%
         </button>
-      </div>
+        <button
+          type="button"
+          className={`tool-btn tool-btn-text ${followCurrent ? "is-active" : ""}`}
+          aria-pressed={followCurrent}
+          onClick={() => setFollowCurrent(true)}
+        >
+          Theo CURRENT
+        </button>
+      </div>}
       <div
         ref={scrollerRef}
-        className={`${heightClass} overflow-auto rounded bg-black/20 select-none touch-none ${
+        className={`${heightClass} tree-scroller select-none touch-none ${
           dragging ? "cursor-grabbing" : "cursor-grab"
         }`}
+        tabIndex={0}
+        role="region"
+        aria-label="Cây tìm kiếm. Dùng phím mũi tên để di chuyển, cộng hoặc trừ để thu phóng."
         onPointerDown={startDrag}
         onPointerMove={drag}
         onPointerUp={stopDrag}
         onPointerCancel={stopDrag}
         onWheel={handleWheel}
+        onKeyDown={handleKeyDown}
       >
         <svg
           ref={svgRef}
@@ -318,21 +316,23 @@ function TreeSvg({ tree, step, problem, heightClass = "h-[460px]" }) {
           viewBox={`0 0 ${laid.width} ${laid.height}`}
           style={{ minWidth: laid.width * zoom, display: "block", margin: "0 auto" }}
         >
+          <title>Cây duyệt theo từng bước</title>
+          <desc>Node được giữ nguyên vị trí. OPEN đang chờ, CURRENT đang được mở rộng, CLOSED đã xử lý xong.</desc>
           {laid.all.flatMap((n) =>
-            n.kids.map((child) => (
+            n.kids.filter((child) => cls.get(n.id) !== "hidden" && cls.get(child.id) !== "hidden").map((child) => (
               <line
                 key={`${n.id}-${child.id}`}
                 x1={n.x + NODE_W / 2}
                 y1={n.y + NODE_H}
                 x2={child.x + NODE_W / 2}
                 y2={child.y}
-                stroke="rgba(120,140,255,.65)"
+                stroke="var(--tree-edge)"
                 strokeWidth="1.5"
               />
             ))
           )}
-          {laid.all.map((n) => (
-            <NodeCard key={n.id} node={n} state={cls.get(n.id)} problem={problem} foodUniverse={foodUniverse} />
+          {laid.all.filter((n) => cls.get(n.id) !== "hidden").map((n) => (
+            <NodeCard key={n.id} node={n} state={cls.get(n.id)} problem={problem} />
           ))}
         </svg>
       </div>
@@ -349,40 +349,45 @@ function TreeCounters({ tree, step }) {
     if (state === "closed") closed++;
   }
   return (
-    <div className="grid grid-cols-2 gap-2 mb-3">
-      <div className="rounded border border-[rgba(255,176,0,.28)] bg-[#07070f] px-3 py-2 font-term text-[22px] text-[color:var(--color-amber)]">
-        Open list: {open}
+    <div className="tree-counters">
+      <div>
+        <span>OPEN</span>
+        <strong>{open}</strong>
       </div>
-      <div className="rounded border border-[rgba(255,176,0,.28)] bg-[#07070f] px-3 py-2 font-term text-[22px] text-[color:var(--color-amber)]">
-        Closed list: {closed}
+      <div>
+        <span>CLOSED</span>
+        <strong>{closed}</strong>
       </div>
     </div>
   );
 }
 
-export function SearchTreePanel({ tree, active, step, treeMeta, problem }) {
+export function SearchTreePanel({ tree, active, step, treeMeta, problem, smoothFocus = false, compact = false }) {
   return (
-    <div className="crt-panel p-4 min-h-[420px]">
-      <div className="mb-3 flex items-center justify-between gap-3">
-        <h2 className="crt-label">◢ Step-by-step search tree</h2>
+    <section className={`lab-panel tree-panel ${compact ? "is-compact" : ""}`} aria-labelledby="tree-title">
+      <div className="panel-heading">
+        <div>
+          <p className="section-kicker">Không gian tìm kiếm</p>
+          <h2 id="tree-title">Cây duyệt từng bước</h2>
+        </div>
         {treeMeta?.truncated && (
-          <span className="crt-label text-[11px]" style={{ color: "var(--color-clyde)" }}>
-            Limited to {treeMeta.limit} nodes
+          <span className="status-note">
+            Giới hạn {treeMeta.limit} node
           </span>
         )}
       </div>
       {!active ? (
-        <p className="crt-label text-[13px]">The search tree is available in Static mode.</p>
+        <p className="empty-state">Cây tìm kiếm chỉ có trong chế độ tìm kiếm tĩnh.</p>
       ) : !tree || tree.length === 0 ? (
-        <p className="crt-label text-[13px]">Click Run or Next step to build the tree.</p>
+        <p className="empty-state">Chọn cấu hình rồi bấm Bắt đầu hoặc Bước tiếp để dựng cây.</p>
       ) : (
         <>
           <TreeCounters tree={tree} step={step} />
-          <TreeSvg tree={tree} step={step} problem={problem} />
-          <TreeLegend problem={problem} />
+          <TreeSvg tree={tree} step={step} problem={problem} smoothFocus={smoothFocus} compact={compact} />
+          {!compact && <TreeLegend problem={problem} />}
         </>
       )}
-    </div>
+    </section>
   );
 }
 
@@ -398,50 +403,50 @@ function LegendItem({ color, children }) {
 
 function TreeLegend({ problem }) {
   return (
-    <div className="mt-3 flex flex-col gap-1.5 font-term text-[12px] text-[color:var(--color-amber-dim)]">
-      <div className="flex flex-wrap gap-x-4 gap-y-1">
-        <LegendItem color="var(--color-maze)">OPEN — in frontier (waiting)</LegendItem>
-        <LegendItem color="#FF3B3B">CURRENT — being expanded</LegendItem>
-        <LegendItem color="#8891b8">CLOSED — expansion complete</LegendItem>
+    <div className="tree-legend">
+      <div>
+        <LegendItem color="var(--state-open)">OPEN: đang chờ</LegendItem>
+        <LegendItem color="var(--state-current)">CURRENT: đang mở rộng</LegendItem>
+        <LegendItem color="var(--state-closed)">CLOSED: đã xử lý</LegendItem>
       </div>
-      <div className="flex flex-wrap gap-x-4 gap-y-1">
-        <span style={{ color: "var(--color-g)" }}>g = cost from start</span>
-        <span style={{ color: "var(--color-h)" }}>h = estimated cost to goal</span>
+      <div>
+        <span style={{ color: "var(--color-g)" }}>g = chi phí đã đi</span>
+        <span style={{ color: "var(--color-h)" }}>h = chi phí ước lượng</span>
         <span style={{ color: "var(--color-f)" }}>f = g + h</span>
-        {problem === "eat_all" && <span>F = food mask · |F|; hover to view the full set</span>}
+        {problem === "eat_all" && <span>F = số thức ăn còn lại; focus node để xem đầy đủ</span>}
       </div>
     </div>
   );
 }
 
-export function SearchTreePreview({ tree, title, subtitle, treeMeta, problem, step }) {
+export function SearchTreePreview({ tree, title, subtitle, treeMeta, problem, step, compact = false }) {
   if (!tree || tree.length === 0) {
     return (
-      <div className="crt-panel p-3">
-        <h3 className="crt-label" style={{ color: "var(--color-pac)" }}>{title}</h3>
-        {subtitle && <div className="crt-label text-[12px] mt-1">{subtitle}</div>}
-        <p className="crt-label text-[13px] mt-3">No search tree available.</p>
-      </div>
+      <section className="lab-panel tree-preview">
+        <h3>{title}</h3>
+        {subtitle && <p>{subtitle}</p>}
+        <p className="empty-state">Không có cây tìm kiếm.</p>
+      </section>
     );
   }
 
   const displayStep = step == null ? lastTreeStep(tree) : step;
 
   return (
-    <div className="crt-panel p-3 flex flex-col gap-2">
-      <div className="flex items-start justify-between gap-3">
+    <section className={`lab-panel tree-preview ${compact ? "is-compact" : ""}`}>
+      <div className="panel-heading compact-heading">
         <div>
-          <h3 className="crt-label" style={{ color: "var(--color-pac)" }}>{title}</h3>
-          {subtitle && <div className="crt-label text-[12px] mt-1">{subtitle}</div>}
+          <h3>{title}</h3>
+          {subtitle && <p>{subtitle}</p>}
         </div>
         {treeMeta?.truncated && (
-          <span className="crt-label text-[10px]" style={{ color: "var(--color-clyde)" }}>
-            {treeMeta.limit} nodes
+          <span className="status-note">
+            {treeMeta.limit} node
           </span>
         )}
       </div>
-      <TreeCounters tree={tree} step={displayStep} />
-      <TreeSvg tree={tree} step={displayStep} problem={problem} heightClass="h-[340px]" />
-    </div>
+      {!compact && <TreeCounters tree={tree} step={displayStep} />}
+      <TreeSvg tree={tree} step={displayStep} problem={problem} heightClass={compact ? "tree-viewport-mini" : "tree-viewport-compare"} compact={compact} />
+    </section>
   );
 }

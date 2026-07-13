@@ -1,72 +1,65 @@
-// CompareTable.jsx — Bảng so sánh các thuật toán trên cùng bản đồ.
-//
-// Nhận compareRows từ /compare: [{algorithm, found, optimal, stats, tree}] hoặc
-// {algorithm, error}. Tô đậm (class .best) ô tốt nhất theo từng tiêu chí.
+import { buildComparisonInsights } from "./comparisonInsights";
 
-const COLS = [
-  ["Time (ms)", "time_ms"],
+const COLUMNS = [
   ["Cost", "cost"],
+  ["Số bước", "path_length"],
+  ["Node mở rộng", "nodes_expanded"],
+  ["Node sinh ra", "nodes_generated"],
+  ["Frontier lớn nhất", "max_frontier"],
+  ["Thời gian (ms)", "time_ms"],
 ];
 
-const fmt = (v) => (v === undefined || v === null ? "—" : v);
+const format = (value) => value == null ? "-" : value;
 
 export function CompareTable({ rows, algoInfo }) {
-  if (!rows || rows.length === 0) return null;
-
-  // Tìm giá trị tốt nhất (nhỏ nhất) mỗi cột để tô đậm.
-  const best = {};
-  for (const [, key] of COLS) {
-    let min = Infinity;
-    for (const r of rows) {
-      const v = r.stats?.[key];
-      if (typeof v === "number" && v < min) min = v;
-    }
-    best[key] = min;
-  }
-
-  const nameOf = (k) => algoInfo?.[k]?.name || k;
+  if (!rows?.length) return null;
+  const insights = buildComparisonInsights(rows, algoInfo);
+  const bestKeys = {
+    cost: insights.metrics.cost,
+    nodes_expanded: insights.metrics.nodes,
+    max_frontier: insights.metrics.frontier,
+    time_ms: insights.metrics.time,
+  };
+  const nameOf = (key) => algoInfo?.[key]?.name || key;
 
   return (
-    <div className="crt-panel p-4">
-      <h2 className="crt-label mb-3">◢ Algorithm comparison</h2>
-      <div className="max-h-[280px] overflow-auto">
-        <table className="compare">
+    <section className="lab-panel comparison-table-panel" aria-labelledby="comparison-table-title">
+      <div className="panel-heading compact-heading">
+        <div>
+          <p className="section-kicker">Số liệu đầy đủ</p>
+          <h2 id="comparison-table-title">Bảng so sánh</h2>
+        </div>
+      </div>
+      <p className="metric-glossary">
+        Node mở rộng là trạng thái đã lấy ra xử lý. Frontier lớn nhất phản ánh mức bộ nhớ đỉnh. Runtime chỉ tham khảo trên máy hiện tại.
+      </p>
+      <div className="table-scroll">
+        <table className="compare-table">
+          <caption>Kết quả các thuật toán trên cùng bản đồ và bài toán</caption>
           <thead>
             <tr>
-              <th>Algorithm</th>
-              {COLS.map(([label]) => (
-                <th key={label}>{label}</th>
-              ))}
-              <th
-                className="cursor-help"
-                title="Optimal means the path has minimum total cost. BFS/UCS are always optimal; A* is optimal with an admissible heuristic; DFS/Greedy are not guaranteed."
-              >
-                Optimal
-              </th>
+              <th scope="col">Thuật toán</th>
+              <th scope="col">Tìm thấy</th>
+              {COLUMNS.map(([label]) => <th key={label} scope="col">{label}</th>)}
+              <th scope="col">Đảm bảo tối ưu</th>
             </tr>
           </thead>
           <tbody>
-            {rows.map((r) => (
-              <tr key={r.algorithm}>
-                <td>{nameOf(r.algorithm)}</td>
-                {r.error ? (
-                  <td colSpan={COLS.length + 1} className="text-left" style={{ color: "var(--color-clyde)" }}>
-                    {r.error}
-                  </td>
+            {rows.map((row) => (
+              <tr key={row.algorithm}>
+                <th scope="row">{nameOf(row.algorithm)}</th>
+                {row.error ? (
+                  <td colSpan={COLUMNS.length + 2} className="table-error">{row.error}</td>
                 ) : (
                   <>
-                    {COLS.map(([, key]) => {
-                      const v = r.stats?.[key];
-                      const isBest = typeof v === "number" && v === best[key];
-                      return (
-                        <td key={key} className={isBest ? "best" : ""}>
-                          {fmt(v)}
-                        </td>
-                      );
+                    <td>{row.found === false || row.stats?.found === false ? "Không" : "Có"}</td>
+                    {COLUMNS.map(([, key]) => {
+                      const value = row.stats?.[key];
+                      const best = bestKeys[key];
+                      const isBest = best && value === best.value && best.algorithms.includes(nameOf(row.algorithm));
+                      return <td key={key} className={isBest ? "is-best" : ""}>{format(value)}</td>;
                     })}
-                    <td style={{ color: r.optimal ? "var(--color-pac)" : "var(--color-clyde)" }}>
-                      {r.optimal ? "✓" : "✗"}
-                    </td>
+                    <td>{row.optimal ? "Có" : "Không"}</td>
                   </>
                 )}
               </tr>
@@ -74,6 +67,6 @@ export function CompareTable({ rows, algoInfo }) {
           </tbody>
         </table>
       </div>
-    </div>
+    </section>
   );
 }

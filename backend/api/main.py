@@ -15,7 +15,7 @@ from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 
 from ..game.layout import list_maps, load_layout
-from ..game.problem import EatAllFoodProblem, PathToPointProblem, farthest_food
+from ..game.problem import EatAllFoodProblem, PathToPointProblem, farthest_cell
 from ..game.state import GameState
 from ..search.heuristics import get_heuristic
 from ..search.registry import (
@@ -49,12 +49,26 @@ def serialize_map(s: GameState) -> Dict:
     }
 
 
-def build_problem(start: GameState, kind: str):
-    if kind == "path_to_farthest":
-        goal = farthest_food(start)
-        if goal is None:
-            raise HTTPException(400, "Bản đồ không có food cho bài toán path_to_farthest.")
-        return PathToPointProblem(start, goal)
+def build_problem(start: GameState, kind: str, goal=None):
+    if kind == "path_to_cell":
+        if goal is not None:
+            if (
+                not isinstance(goal, (list, tuple))
+                or len(goal) != 2
+                or not all(isinstance(v, int) for v in goal)
+            ):
+                raise HTTPException(400, "goal phải có dạng [row, col].")
+            r, c = int(goal[0]), int(goal[1])
+            if not (0 <= r < start.height and 0 <= c < start.width):
+                raise HTTPException(400, f"Ô đích ({r},{c}) nằm ngoài bản đồ.")
+            if (r, c) in start.walls:
+                raise HTTPException(400, f"Ô đích ({r},{c}) là tường, không thể tới.")
+            return PathToPointProblem(start, (r, c))
+        # Chưa chọn ô -> mặc định ô trống XA nhất (không nhất thiết có food).
+        auto_goal = farthest_cell(start)
+        if auto_goal is None:
+            raise HTTPException(400, "Bản đồ không có ô trống cho bài toán path_to_cell.")
+        return PathToPointProblem(start, auto_goal)
     return EatAllFoodProblem(start)
 
 
@@ -62,7 +76,7 @@ def build_problem(start: GameState, kind: str):
 # food ít. Chặn sớm để tránh treo server trên bản đồ lớn (medium/classic).
 EAT_ALL_MAX_FOOD = 25
 # Heuristic phải khớp loại bài toán, nếu không nó trả 0 và A*/Greedy suy biến:
-#   - goal_manhattan (name "manhattan") chỉ có tác dụng cho path_to_farthest.
+#   - goal_manhattan (name "manhattan") chỉ có tác dụng cho path_to_cell.
 #   - các heuristic dựa trên food chỉ có tác dụng cho eat_all.
 # Nếu người dùng chọn heuristic trả 0 cho bài toán đang chạy, tự thay bằng
 # heuristic mặc định hợp lý để A* thật sự dùng thông tin (không lặng lẽ = UCS).
@@ -73,12 +87,12 @@ _ZERO_FOR_PATH = {"nearest_food", "farthest_food", "food_count"}
 def resolve_heuristic(heuristic_name: str, problem_kind: str) -> str:
     if problem_kind == "eat_all" and heuristic_name in _ZERO_FOR_EAT_ALL:
         return "farthest_food"  # admissible -> A* tối ưu và expand ít hơn UCS
-    if problem_kind == "path_to_farthest" and heuristic_name in _ZERO_FOR_PATH:
+    if problem_kind == "path_to_cell" and heuristic_name in _ZERO_FOR_PATH:
         return "manhattan"
     return heuristic_name
 
 
-def run_static(map_name: str, algo: str, heuristic_name: str, problem_kind: str):
+def run_static(map_name: str, algo: str, heuristic_name: str, problem_kind: str, goal=None):
     try:
         start = load_layout(map_name)
     except FileNotFoundError:
@@ -98,7 +112,7 @@ def run_static(map_name: str, algo: str, heuristic_name: str, problem_kind: str)
             f"'đi tới food xa nhất' cho bản đồ lớn.",
         )
 
-    problem = build_problem(start, problem_kind)
+    problem = build_problem(start, problem_kind, goal)
     fn = SEARCH_ALGOS[algo]
 
     if is_informed(algo):
@@ -133,7 +147,7 @@ def get_map(name: str):
 
 @app.post("/solve")
 def solve(req: SolveRequest):
-    result = run_static(req.map, req.algorithm, req.heuristic, req.problem)
+    result = run_static(req.map, req.algorithm, req.heuristic, req.problem, req.goal)
     start = load_layout(req.map)
     return {
         "map": serialize_map(start),
@@ -148,7 +162,7 @@ def compare(req: CompareRequest):
     rows: List[Dict] = []
     for algo in req.algorithms:
         try:
-            result = run_static(req.map, algo, req.heuristic, req.problem)
+            result = run_static(req.map, algo, req.heuristic, req.problem, req.goal)
         except HTTPException as e:
             rows.append({"algorithm": algo, "error": e.detail})
             continue

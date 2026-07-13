@@ -1,65 +1,39 @@
-// ControlDeck.updated.jsx
-// ------------------------------------------------------------
-// File này là source code của BẢNG ĐIỀU KHIỂN bên phải giao diện của cả 2 tab run và compare.
-// Nó quản lý:
-// 1. Chọn map, problem, algorithm, heuristic.
-// 2. Bật/tắt âm thanh.
-// 3. Chạy thuật toán ở 2 chế độ: Automatic và Step-by-step.
-// 4. Chọn nhiều thuật toán để so sánh trong tab Compare.
-//
-// Điểm đã bổ sung:
-// - Tách phần nút chạy Automatic / Step-by-step thành component RunModePanel.
-// - Render RunModePanel cả trong tab Compare, để bảng điều khiển có nút như hình 2.
-// ------------------------------------------------------------
-
 const GROUP_LABEL = {
-  uninformed: "Uninformed search",
-  informed: "Informed search",
+  uninformed: "Tìm kiếm không thông tin",
+  informed: "Tìm kiếm có thông tin",
 };
 
 const HEURISTIC_LABEL = {
-  null: "None",
-  manhattan: "Manhattan distance",
-  nearest_food: "Nearest food",
-  farthest_food: "Farthest food",
-  food_count: "Food remaining",
+  null: "Không dùng",
+  manhattan: "Khoảng cách Manhattan",
+  nearest_food: "Thức ăn gần nhất",
+  farthest_food: "Thức ăn xa nhất",
+  food_count: "Số thức ăn còn lại",
 };
 
-// Khi đổi problem, chọn heuristic mặc định phù hợp.
-// Eat all food thường hợp với farthest_food.
-// Reach the farthest food là bài đi tới 1 điểm, nên manhattan phù hợp hơn.
 function problemPatch(problem) {
-  const heuristic = problem === "eat_all" ? "farthest_food" : "manhattan";
-  return { problem, heuristic };
+  return {
+    problem,
+    heuristic: problem === "eat_all" ? "farthest_food" : "manhattan",
+    goal: null,
+  };
 }
 
-// Nút bật/tắt âm thanh, dùng lại ở Configuration và Compare.
-function SoundButton({ soundOn, onToggleSound }) {
+function Field({ label, hint, children, className = "" }) {
   return (
-    <button
-      className="font-term text-[18px] leading-none px-2 py-1 rounded border"
-      style={{
-        color: soundOn ? "var(--color-pac)" : "var(--color-amber-dim)",
-        borderColor: "rgba(255,176,0,.35)",
-      }}
-      onClick={onToggleSound}
-      title="Toggle sound"
-      aria-label={soundOn ? "Turn sound off" : "Turn sound on"}
-      aria-pressed={soundOn}
-    >
-      {soundOn ? "🔊 ON" : "🔇 OFF"}
-    </button>
+    <label className={`field ${className}`}>
+      <span>{label}</span>
+      {children}
+      {hint && <small>{hint}</small>}
+    </label>
   );
 }
 
-// Panel chọn chế độ chạy.
-// Automatic: chạy liên tục, có Run / Pause / Reset và chỉnh speed.
-// Step-by-step: chạy từng bước, có Step back / Next step / Reset.
-function RunModePanel({
+function PlaybackDock({
   cfg,
-  set,
   busy,
   paused,
+  progress,
   onRun,
   onPause,
   onStep,
@@ -68,320 +42,235 @@ function RunModePanel({
   canStepNext,
   onReset,
 }) {
-  const runMode = cfg.runMode || "auto";
+  const auto = cfg.runMode !== "step";
+  const primaryAction = auto && busy ? onPause : auto ? onRun : onStep;
+  const primaryLabel = auto && busy ? (paused ? "Tiếp tục" : "Tạm dừng") : auto ? "Bắt đầu" : "Bước tiếp";
+  const primaryDisabled = auto ? (!busy && !onRun) : (busy || !canStepNext || !onStep);
 
   return (
-    <div className="crt-panel p-4 flex flex-col gap-3">
-      <h2 className="crt-label">◢ Run mode</h2>
-
-      {/* Hai nút chọn chế độ chạy như hình 2 */}
-      <div className="grid grid-cols-2 gap-2">
-        <button
-          type="button"
-          className={`arcade-btn ${runMode === "auto" ? "btn-run" : "btn-mode-off"}`}
-          disabled={busy}
-          onClick={() => set({ runMode: "auto" })}
-        >
-          ▶ Automatic
+    <section className="playback-dock" aria-label="Điều khiển mô phỏng">
+      <div className="playback-progress" aria-live="polite">
+        <span>Tiến độ</span>
+        <strong>{progress?.step ?? 0}/{progress?.total ?? 0}</strong>
+      </div>
+      <div className="playback-actions">
+        <button className="button secondary" disabled={busy || !canStepBack || !onStepBack} onClick={onStepBack}>
+          Lùi bước
         </button>
-
-        <button
-          type="button"
-          className={`arcade-btn ${runMode === "step" ? "btn-step" : "btn-mode-off"}`}
-          disabled={busy}
-          onClick={() => set({ runMode: "step" })}
-        >
-          ⇥ Step-by-step
+        <button className="button primary" disabled={primaryDisabled} onClick={primaryAction}>
+          {primaryLabel}
+        </button>
+        <button className={`button ${busy ? "danger" : "ghost"}`} disabled={!onReset} onClick={onReset}>
+          {busy ? "Dừng" : "Đặt lại"}
         </button>
       </div>
-
-      {/* Chỉ hiện thanh speed khi chạy tự động */}
-      {runMode === "auto" && (
-        <Field label={`Speed: ${cfg.speed} steps/second`}>
-          <input
-            type="range"
-            className="crt-range"
-            min={1}
-            max={60}
-            value={cfg.speed}
-            onChange={(e) => set({ speed: parseInt(e.target.value, 10) })}
-          />
-        </Field>
-      )}
-
-      {/* Bộ nút tương ứng với từng chế độ */}
-      {runMode === "auto" ? (
-        <div className="grid grid-cols-3 gap-2 mt-1">
-          <button className="arcade-btn btn-run" disabled={busy || !onRun} onClick={onRun}>
-            ▶ Run
-          </button>
-          <button className="arcade-btn btn-pause" disabled={!busy || !onPause} onClick={onPause}>
-            {paused ? "▶ Resume" : "‖ Pause"}
-          </button>
-          <button className="arcade-btn btn-reset" disabled={busy || !onReset} onClick={onReset}>
-            ↻ Reset
-          </button>
-        </div>
-      ) : (
-        <div className="grid grid-cols-3 gap-2 mt-1">
-          <button
-            className="arcade-btn btn-back"
-            disabled={busy || !canStepBack || !onStepBack}
-            onClick={onStepBack}
-          >
-            ⇤ Step back
-          </button>
-          <button
-            className="arcade-btn btn-step"
-            disabled={busy || !canStepNext || !onStep}
-            onClick={onStep}
-          >
-            ⇥ Next step
-          </button>
-          <button className="arcade-btn btn-reset" disabled={busy || !onReset} onClick={onReset}>
-            ↻ Reset
-          </button>
-        </div>
-      )}
-    </div>
+    </section>
   );
 }
 
 export function ControlDeck({
   tab = "play",
   section = "all",
-  maps,
-  algorithms,
-  heuristics,
-  algoInfo,
+  maps = [],
+  algorithms = [],
+  heuristics = [],
+  algoInfo = {},
   cfg,
   setCfg,
   busy,
   paused,
-  soundOn,
-  onToggleSound,
+  progress,
+  canStepBack,
+  canStepNext,
   onRun,
   onPause,
   onStep,
   onStepBack,
-  canStepBack,
-  canStepNext,
   onReset,
   onCompare,
+  onProblemChange,
 }) {
-  // Hàm set dùng để cập nhật cfg.
-  // resetCached = true: reset kết quả/cây đang có khi đổi map/problem/algorithm.
   const set = (patch, resetCached = false) => {
     if (resetCached) onReset?.();
-    setCfg((c) => ({ ...c, ...patch }));
+    setCfg((current) => ({ ...current, ...patch }));
   };
-
-  const usesHeuristic = algoInfo?.[cfg.algorithm]?.uses_heuristic;
-  const isCompare = tab === "compare";
-
-  // Gom thuật toán thành 2 nhóm để hiển thị trong select/checkbox.
   const groups = { uninformed: [], informed: [] };
-  for (const a of algorithms) {
-    if (a.group === "uninformed" || a.group === "informed") {
-      groups[a.group].push(a);
-    }
-  }
+  algorithms.forEach((algorithm) => groups[algorithm.group]?.push(algorithm));
 
-  // TAB COMPARE
-  // Trước đây nhánh này chỉ hiện panel Compare.
-  // Bây giờ thêm RunModePanel phía trên để có nút Automatic / Step-by-step như hình 2.
-  if (isCompare) {
+  if (section === "run" || section === "compare-playback") {
     return (
-      <div className="flex flex-col gap-4">
-        <RunModePanel
-          cfg={cfg}
-          set={set}
-          busy={busy}
-          paused={paused}
-          onRun={onRun}
-          onPause={onPause}
-          onStep={onStep}
-          onStepBack={onStepBack}
-          canStepBack={canStepBack}
-          canStepNext={canStepNext}
-          onReset={onReset}
-        />
-
-        <div className="crt-panel p-4 flex flex-col gap-3">
-          <div className="flex items-center justify-between">
-            <h2 className="crt-label">◢ Compare</h2>
-            <SoundButton soundOn={soundOn} onToggleSound={onToggleSound} />
-          </div>
-
-          <Field label="Map">
-            <select
-              className="crt-select"
-              value={cfg.map}
-              disabled={busy}
-              onChange={(e) => set({ map: e.target.value }, true)}
-            >
-              {maps.map((m) => (
-                <option key={m} value={m}>{m}</option>
-              ))}
-            </select>
-          </Field>
-
-          <Field label="Problem">
-            <select
-              className="crt-select"
-              value={cfg.problem}
-              disabled={busy}
-              onChange={(e) => set(problemPatch(e.target.value), true)}
-            >
-              <option value="eat_all">Eat all food</option>
-              <option value="path_to_farthest">Reach the farthest food</option>
-            </select>
-          </Field>
-
-          <Field label="Heuristic (for A*/Greedy)">
-            <select
-              className="crt-select"
-              value={cfg.heuristic}
-              disabled={busy}
-              onChange={(e) => set({ heuristic: e.target.value }, true)}
-            >
-              {heuristics.map((h) => (
-                <option key={h} value={h}>{HEURISTIC_LABEL[h] || h}</option>
-              ))}
-            </select>
-          </Field>
-
-          <Field label="Algorithms to compare">
-            <div className="grid grid-cols-2 gap-1">
-              {[...groups.uninformed, ...groups.informed].map((a) => {
-                const checked = (cfg.compareAlgos || []).includes(a.key);
-                return (
-                  <label key={a.key} className="flex items-center gap-1 crt-label cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={checked}
-                      disabled={busy}
-                      onChange={(e) => {
-                        const cur = new Set(cfg.compareAlgos || []);
-                        if (e.target.checked) cur.add(a.key);
-                        else cur.delete(a.key);
-                        set({ compareAlgos: [...cur] });
-                      }}
-                    />
-                    {a.name}
-                  </label>
-                );
-              })}
-            </div>
-          </Field>
-
-          <button className="arcade-btn btn-compare" disabled={busy} onClick={onCompare}>
-            ⊞ Compare {(cfg.compareAlgos || []).length || "all"}
-          </button>
-        </div>
-      </div>
+      <PlaybackDock
+        cfg={cfg}
+        busy={busy}
+        paused={paused}
+        progress={progress}
+        onRun={onRun}
+        onPause={onPause}
+        onStep={onStep}
+        onStepBack={onStepBack}
+        canStepBack={canStepBack}
+        canStepNext={canStepNext}
+        onReset={onReset}
+      />
     );
   }
 
-  const showRunControls = section === "all" || section === "run";
-  const showSettings = section === "all" || section === "settings";
+  if (tab === "compare") {
+    const selected = cfg.compareAlgos || [];
+    const compareUsesHeuristic = selected.some((key) => algoInfo[key]?.uses_heuristic);
+    const validSelection = selected.length >= 2 && selected.length <= 5;
+    const allSelected = algorithms.length > 0 && selected.length === algorithms.length;
 
-  // TAB PLAY
-  return (
-    <div className="flex flex-col gap-4">
-      {showRunControls && (
-        <RunModePanel
-          cfg={cfg}
-          set={set}
-          busy={busy}
-          paused={paused}
-          onRun={onRun}
-          onPause={onPause}
-          onStep={onStep}
-          onStepBack={onStepBack}
-          canStepBack={canStepBack}
-          canStepNext={canStepNext}
-          onReset={onReset}
-        />
-      )}
-
-      {showSettings && (
-        <div className="crt-panel p-4 flex flex-col gap-3">
-          <div className="flex items-center justify-between">
-            <h2 className="crt-label">◢ Configuration</h2>
-            <SoundButton soundOn={soundOn} onToggleSound={onToggleSound} />
+    return (
+      <section className="lab-panel compare-config" aria-labelledby="compare-config-title">
+        <div className="panel-heading">
+          <div>
+            <p className="section-kicker">Thiết lập phép thử</p>
+            <h2 id="compare-config-title">Chọn thuật toán</h2>
           </div>
+          <button
+            type="button"
+            className="button ghost compact"
+            disabled={busy}
+            onClick={() => set({ compareAlgos: allSelected ? [] : algorithms.map((algorithm) => algorithm.key) }, true)}
+          >
+            {allSelected ? "Bỏ chọn" : "Chọn tất cả"}
+          </button>
+        </div>
 
-          <Field label="Map">
-            <select
-              className="crt-select"
-              value={cfg.map}
-              disabled={busy}
-              onChange={(e) => set({ map: e.target.value }, true)}
-            >
-              {maps.map((m) => (
-                <option key={m} value={m}>{m}</option>
-              ))}
+        <div className="config-grid compare-fields">
+          <Field label="Bản đồ">
+            <select value={cfg.map} disabled={busy} onChange={(event) => {
+              onProblemChange?.();
+              set({ map: event.target.value, goal: null }, true);
+            }}>
+              {maps.map((map) => <option key={map} value={map}>{map}</option>)}
             </select>
           </Field>
-
-          <Field label="Problem">
-            <select
-              className="crt-select"
-              value={cfg.problem}
-              disabled={busy}
-              onChange={(e) => set(problemPatch(e.target.value), true)}
-            >
-              <option value="eat_all">Eat all food</option>
-              <option value="path_to_farthest">Reach the farthest food</option>
+          <Field label="Bài toán">
+            <select value={cfg.problem} disabled={busy} onChange={(event) => {
+              onProblemChange?.(event.target.value);
+              set(problemPatch(event.target.value), true);
+            }}>
+              <option value="eat_all">Ăn hết thức ăn</option>
+              <option value="path_to_cell">Đi đến ô đã chọn</option>
             </select>
           </Field>
-
-          <Field label="Algorithm">
-            <select
-              className="crt-select"
-              value={cfg.algorithm}
-              disabled={busy}
-              onChange={(e) => set({ algorithm: e.target.value }, true)}
-            >
-              {["uninformed", "informed"].map((g) =>
-                groups[g].length ? (
-                  <optgroup key={g} label={GROUP_LABEL[g]}>
-                    {groups[g].map((a) => (
-                      <option key={a.key} value={a.key}>{a.name}</option>
-                    ))}
-                  </optgroup>
-                ) : null
-              )}
-            </select>
-          </Field>
-
-          {usesHeuristic && (
+          {compareUsesHeuristic && (
             <Field label="Heuristic">
-              <select
-                className="crt-select"
-                value={cfg.heuristic}
-                disabled={busy}
-                onChange={(e) => set({ heuristic: e.target.value }, true)}
-              >
-                {heuristics.map((h) => (
-                  <option key={h} value={h}>{HEURISTIC_LABEL[h] || h}</option>
-                ))}
+              <select value={cfg.heuristic} disabled={busy} onChange={(event) => set({ heuristic: event.target.value }, true)}>
+                {heuristics.map((heuristic) => <option key={heuristic} value={heuristic}>{HEURISTIC_LABEL[heuristic] || heuristic}</option>)}
               </select>
             </Field>
           )}
+          <Field label="Đích so sánh" hint={cfg.problem === "path_to_cell" ? "Đích đang dùng cho mọi thuật toán." : "So sánh trên cùng toàn bộ thức ăn."}>
+            <output className="field-output">
+              {cfg.problem === "eat_all" ? "Toàn bộ thức ăn" : cfg.goal ? `(${cfg.goal[0]}, ${cfg.goal[1]})` : "Mặc định: ô xa nhất"}
+            </output>
+          </Field>
         </div>
-      )}
-    </div>
-  );
-}
 
-// Component nhỏ để thống nhất giao diện label + input/select.
-function Field({ label, children }) {
+        <fieldset className="algorithm-picker">
+          <legend>Thuật toán cần so sánh</legend>
+          <div>
+            {algorithms.map((algorithm) => {
+              const checked = selected.includes(algorithm.key);
+              return (
+                <label key={algorithm.key} className={checked ? "is-selected" : ""}>
+                  <input
+                    type="checkbox"
+                    checked={checked}
+                    disabled={busy}
+                    onChange={(event) => {
+                      const next = new Set(selected);
+                      if (event.target.checked) next.add(algorithm.key);
+                      else next.delete(algorithm.key);
+                      set({ compareAlgos: [...next] }, true);
+                    }}
+                  />
+                  <span>{algorithm.name}</span>
+                  <small>{GROUP_LABEL[algorithm.group]}</small>
+                </label>
+              );
+            })}
+          </div>
+        </fieldset>
+
+        {!validSelection && <p className="field-error" role="alert">Chọn từ 2 đến 5 thuật toán.</p>}
+        <div className="compare-submit-row">
+          <button className="button primary compare-submit" disabled={busy || !validSelection} onClick={onCompare}>
+            {busy ? "Đang so sánh" : `Chạy so sánh ${selected.length} thuật toán`}
+          </button>
+          {busy && <button className="button danger" onClick={onReset}>Dừng</button>}
+        </div>
+      </section>
+    );
+  }
+
+  const configLocked = busy || (cfg.runMode === "step" && canStepBack);
+  const usesHeuristic = algoInfo?.[cfg.algorithm]?.uses_heuristic;
+
   return (
-    <label className="block">
-      <span className="crt-label block mb-1">{label}</span>
-      {children}
-    </label>
+    <section className="lab-panel experiment-bar" aria-labelledby="experiment-title" aria-disabled={configLocked}>
+      <div className="panel-heading compact-heading">
+        <div>
+          <p className="section-kicker">Thiết lập thí nghiệm</p>
+          <h2 id="experiment-title">Cấu hình tìm kiếm</h2>
+        </div>
+        {configLocked && <span className="status-note">Đặt lại để đổi cấu hình</span>}
+      </div>
+      <div className="config-grid">
+        <Field label="Bản đồ">
+          <select value={cfg.map} disabled={configLocked} onChange={(event) => {
+            onProblemChange?.();
+            set({ map: event.target.value, goal: null }, true);
+          }}>
+            {maps.map((map) => <option key={map} value={map}>{map}</option>)}
+          </select>
+        </Field>
+        <Field label="Bài toán">
+          <select value={cfg.problem} disabled={configLocked} onChange={(event) => {
+            onProblemChange?.(event.target.value);
+            set(problemPatch(event.target.value), true);
+          }}>
+            <option value="eat_all">Ăn hết thức ăn</option>
+            <option value="path_to_cell">Đi đến ô đã chọn</option>
+          </select>
+        </Field>
+        <Field label="Thuật toán">
+          <select value={cfg.algorithm} disabled={configLocked} onChange={(event) => set({ algorithm: event.target.value }, true)}>
+            {["uninformed", "informed"].map((group) => groups[group].length ? (
+              <optgroup key={group} label={GROUP_LABEL[group]}>
+                {groups[group].map((algorithm) => <option key={algorithm.key} value={algorithm.key}>{algorithm.name}</option>)}
+              </optgroup>
+            ) : null)}
+          </select>
+        </Field>
+        {usesHeuristic && (
+          <Field label="Heuristic">
+            <select value={cfg.heuristic} disabled={configLocked} onChange={(event) => set({ heuristic: event.target.value }, true)}>
+              {heuristics.map((heuristic) => <option key={heuristic} value={heuristic}>{HEURISTIC_LABEL[heuristic] || heuristic}</option>)}
+            </select>
+          </Field>
+        )}
+        <Field label="Đích" hint={cfg.problem === "path_to_cell" ? "Click bản đồ hoặc dùng phím mũi tên rồi Enter." : "Bài toán kết thúc khi hết thức ăn."}>
+          <output className="field-output">
+            {cfg.problem === "eat_all" ? "Toàn bộ thức ăn" : cfg.goal ? `(${cfg.goal[0]}, ${cfg.goal[1]})` : "Mặc định: ô xa nhất"}
+          </output>
+        </Field>
+        <div className="field">
+          <span id="run-mode-label">Chế độ chạy</span>
+          <div className="segmented" role="group" aria-labelledby="run-mode-label">
+            <button type="button" aria-pressed={cfg.runMode !== "step"} disabled={configLocked} onClick={() => set({ runMode: "auto" })}>Tự động</button>
+            <button type="button" aria-pressed={cfg.runMode === "step"} disabled={configLocked} onClick={() => set({ runMode: "step" })}>Từng bước</button>
+          </div>
+        </div>
+        {cfg.runMode !== "step" && (
+          <Field label={`Tốc độ: ${cfg.speed} bước/giây`}>
+            <input type="range" min="1" max="60" value={cfg.speed} disabled={configLocked} onChange={(event) => set({ speed: Number(event.target.value) })} />
+          </Field>
+        )}
+      </div>
+    </section>
   );
 }

@@ -1,0 +1,234 @@
+ĐỒ ÁN HỌC PHẦN TRÍ TUỆ NHÂN TẠO
+ PHÂN TÍCH LỰA CHỌN THUẬT TOÁN
+ CHO BÀI TOÁN PAC-MAN
+ So sánh mức độ phù hợp của DFS, BFS, UCS, Greedy Best-First Search và A* đối với
+ Pathfinding và Eat-all-dots
+Mục đích: Tài liệu tham khảo để xây dựng phần phân tích, thực nghiệm và kết luận của
+ báo cáo đồ án.
+ Cần Thơ, 07/2026
+
+1. Mục tiêu phân tích
+Không có một thuật toán tìm kiếm nào luôn tốt nhất cho mọi phiên bản của bài toán Pac-man.
+Mức độ phù hợp phụ thuộc vào kích thước không gian trạng thái, đặc điểm chi phí, yêu cầu tối ưu,
+chất lượng heuristic và giới hạn tài nguyên. Vì vậy, cần phân tích thuật toán theo từng loại bài toán
+thay vì chỉ xếp hạng chung.
+Hai trường hợp đại diện được sử dụng trong đồ án là Pathfinding và Eat-all-dots. Pathfinding là bài
+toán đơn mục tiêu với trạng thái nhỏ; Eat-all-dots là bài toán phức tạp hơn vì trạng thái phải ghi
+nhớ cả vị trí Pac-man và tập thức ăn còn lại.
+1.1. Pathfinding - bài toán đơn giản
+ Trạng thái: s = (x, y)
+• Pac-man cần đi từ một vị trí đầu đến một ô đích cố định.
+ 
+• Mỗi hành động thường là đi lên, xuống, trái hoặc phải.
+ 
+• Nếu mọi bước có chi phí bằng 1, đường đi ít bước nhất cũng là đường đi có chi phí thấp nhất.
+ 
+• Số trạng thái gần bằng số ô hợp lệ trong mê cung.
+ 
+1.2. Eat-all-dots - bài toán phức tạp
+ Trạng thái: s = ((x, y), F)
+Trong đó F là tập các viên thức ăn chưa được ăn. Hai trạng thái có cùng vị trí Pac-man nhưng khác
+tập thức ăn còn lại phải được xem là hai trạng thái khác nhau.
+ Kích thước trạng thái có thể tăng gần P × 2^k
+Với P là số vị trí hợp lệ và k là số viên thức ăn. Thành phần 2^k tạo ra hiện tượng bùng nổ không
+gian trạng thái, khiến các thuật toán duyệt rộng hoặc duyệt theo chi phí có thể tiêu tốn rất nhiều
+thời gian và bộ nhớ.
+ Ý chính: Pathfinding dùng để kiểm chứng tính đúng và tính tối ưu cơ bản;
+ Eat-all-dots dùng để kiểm tra khả năng mở rộng và vai trò của heuristic.
+2. Bài toán đơn giản: BFS thường phù hợp nhất
+Với một mê cung nhỏ, một đích cố định và chi phí mỗi bước bằng 1, Breadth-First Search (BFS)
+thường là lựa chọn cân bằng nhất.
+• Dễ cài đặt bằng hàng đợi FIFO.
+ 
+• Dễ giải thích và dễ kiểm chứng bằng cách quan sát từng lớp độ sâu.
+ 
+• Đầy đủ: nếu tồn tại đường đi, BFS sẽ tìm được trong không gian trạng thái hữu hạn.
+ 
+• Tối ưu theo số bước khi mọi hành động có cùng chi phí.
+ 
+• Không cần thiết kế hoặc kiểm chứng heuristic.
+ 
+Đồ án Pac-man - Phân tích lựa chọn thuật toán
+Trang 1/5
+
+A* vẫn có thể giải tốt Pathfinding, nhưng trong mê cung nhỏ, lợi ích giảm số node mở rộng có thể
+không bù cho độ phức tạp bổ sung của priority queue, hàm g(n), hàm h(n) và quy tắc cập nhật
+đường đi tốt hơn.
+ Thuật toán
+ Mức phù hợp
+ Nhận xét trong Pathfinding nhỏ
+BFS
+Rất phù hợp
+Đơn giản, đầy đủ và tối ưu nếu chi phí bằng nhau.
+DFS
+Có thể dùng
+Ít bộ nhớ nhưng có thể đi sâu vào ngõ cụt và cho đường dài.
+UCS
+Thường chưa cần
+Khi mọi bước cùng chi phí, lợi ích gần giống BFS nhưng triển khai phức
+tạp hơn.
+Greedy
+Có thể nhanh
+Dễ bị tường hoặc ngõ cụt đánh lừa, không bảo đảm tối ưu.
+A*
+Tốt nhưng có thể
+dư
+Hiệu quả, nhưng phải tính heuristic và quản lý priority queue.
+ Kết luận cho bài toán đơn giản: BFS thường là lựa chọn cân bằng nhất.
+3. Bài toán phức tạp: A* thường chiếm ưu thế
+Khi số trạng thái tăng mạnh, đặc biệt trong Eat-all-dots, BFS và UCS có xu hướng mở rộng nhiều
+trạng thái theo nhiều hướng. A* có lợi thế vì kết hợp chi phí đã đi với ước lượng chi phí còn lại.
+ f(n) = g(n) + h(n)
+• g(n): chi phí thực tế từ trạng thái đầu đến n.
+ 
+• h(n): ước lượng chi phí còn lại từ n đến mục tiêu.
+ 
+• f(n): ước lượng tổng chi phí của một lời giải đi qua n.
+ 
+Nếu heuristic có chất lượng tốt, A* ưu tiên các trạng thái có triển vọng, giảm số node phải mở
+rộng so với UCS. Với heuristic admissible phù hợp, A* vẫn có thể bảo đảm tìm lời giải tối ưu.
+Tuy nhiên, A* không miễn nhiễm với bùng nổ trạng thái. Thuật toán vẫn lưu frontier và
+reached/cost map, nên có thể tốn nhiều bộ nhớ khi số viên thức ăn lớn hoặc heuristic quá yếu.
+ Kết luận cho bài toán phức tạp: nếu cần lời giải tối ưu và có heuristic tốt, A*
+ thường chiếm ưu thế.
+3.1. Heuristic cho hai loại bài toán
+Pathfinding: Có thể sử dụng khoảng cách Manhattan đến ô đích.
+ h(n) = |x_n - x_goal| + |y_n - y_goal|
+Eat-all-dots: Không còn một đích duy nhất. Heuristic đơn giản có thể là khoảng cách đến viên thức
+ăn xa nhất còn lại; heuristic mạnh hơn có thể kết hợp khoảng cách từ Pac-man đến tập thức ăn với
+chi phí cây khung nhỏ nhất nối các viên thức ăn còn lại.
+Heuristic mạnh thường giảm số trạng thái mở rộng, nhưng bản thân việc tính heuristic cũng tốn
+thời gian. Do đó cần đánh giá cả thời gian tính heuristic, không chỉ số node được cắt giảm.
+Đồ án Pac-man - Phân tích lựa chọn thuật toán
+Trang 2/5
+
+4. Khi nào Greedy Best-First Search phù hợp?
+ f(n) = h(n)
+Greedy chỉ quan tâm trạng thái nào được ước lượng là gần mục tiêu nhất, không xét chi phí đã đi.
+Điều này giúp thuật toán có thể tiến nhanh về phía đích, nhưng cũng khiến nó dễ chọn một hướng
+hấp dẫn cục bộ mà không tốt cho toàn bộ hành trình.
+• Phù hợp khi bài toán lớn và cần tìm lời giải nhanh.
+ 
+• Phù hợp khi chấp nhận lời giải chưa tối ưu.
+ 
+• Có thể thực dụng khi A* quá chậm hoặc vượt giới hạn bộ nhớ.
+ 
+• Không nên dùng để khẳng định đường đi ngắn nhất hoặc chi phí thấp nhất.
+ 
+ Bài toán rất lớn, ưu tiên tốc độ hơn tối ưu: Greedy có thể phù hợp.
+5. Khi nào DFS có lợi thế?
+DFS ưu tiên trạng thái sâu nhất và thường dùng stack. Lợi thế rõ nhất của DFS là mức sử dụng bộ
+nhớ thấp hơn BFS, UCS và A*. Tuy nhiên, chất lượng lời giải và thời gian chạy phụ thuộc mạnh vào
+thứ tự sinh hành động.
+• Chỉ cần tìm một lời giải bất kỳ, không bắt buộc tối ưu.
+ 
+• Bộ nhớ hạn chế.
+ 
+• Cây tìm kiếm không quá sâu và ít chu trình.
+ 
+• Thứ tự hành động tình cờ dẫn nhanh về mục tiêu.
+ 
+Trong Pac-man, DFS phù hợp để minh họa sự khác biệt giữa các chiến lược frontier hơn là làm
+thuật toán chính cho yêu cầu tối ưu. Nó có thể đi sâu vào ngõ cụt, tạo đường vòng dài và cần cơ
+chế visited để tránh lặp.
+6. Khi nào UCS phù hợp?
+Uniform-Cost Search chọn node có tổng chi phí g(n) nhỏ nhất. UCS đặc biệt phù hợp khi các hành
+động có chi phí khác nhau và chưa có heuristic đáng tin cậy.
+• Ô thường có chi phí 1.
+ 
+• Ô bùn hoặc địa hình khó có chi phí 3.
+ 
+• Vùng nguy hiểm có chi phí 5.
+ 
+Trong trường hợp này, BFS chỉ tối ưu theo số bước, không nhất thiết tối ưu tổng chi phí. UCS vẫn
+tìm đường chi phí thấp nhất với điều kiện chi phí cạnh không âm. Nếu đã có heuristic tốt, A*
+thường hiệu quả hơn UCS vì A* có thêm thông tin định hướng.
+ Chi phí không đồng nhất và chưa có heuristic tốt: dùng UCS.
+Đồ án Pac-man - Phân tích lựa chọn thuật toán
+Trang 3/5
+
+7. Bảng lựa chọn thuật toán theo yêu cầu bài toán
+ Loại bài toán / yêu cầu
+Thuật toán phù hợp
+ Lý do chính
+Nhỏ, chi phí đồng nhất
+BFS
+Đơn giản, đầy đủ, tối ưu theo số bước.
+Nhỏ, chỉ cần lời giải bất kỳ
+DFS
+Ít bộ nhớ, nhưng không đảm bảo chất lượng lời
+giải.
+Chi phí hành động khác nhau
+UCS
+Tối ưu theo tổng chi phí khi chưa có heuristic.
+Lớn, cần lời giải nhanh
+Greedy
+Thường mở rộng ít hơn nhưng không đảm bảo
+tối ưu.
+Lớn, cần lời giải tối ưu
+A*
+Kết hợp chi phí thực với heuristic để định hướng
+tìm kiếm.
+Eat-all-dots nhiều thức ăn
+A* hoặc Greedy
+A* khi cần tối ưu; Greedy khi ưu tiên tốc độ và tài
+nguyên.
+8. Cách kiểm chứng bằng thực nghiệm
+Các kết luận trên là kết luận lý thuyết có điều kiện. Trong báo cáo đồ án, cần xác nhận bằng thực
+nghiệm trên cùng bản đồ và cùng điều kiện đầu vào. Không nên chỉ dựa vào một lần chạy hoặc chỉ
+so sánh thời gian.
+8.1. Nhóm thử nghiệm Pathfinding
+• Dùng cùng mê cung, vị trí đầu và vị trí đích.
+ 
+• Chạy DFS, BFS, UCS, Greedy và A*.
+ 
+• Đặt chi phí mỗi bước bằng 1 để kiểm tra BFS và A* có trả đường tối ưu hay không.
+ 
+• Thiết kế thêm bản đồ có ngõ cụt hoặc tường chắn để quan sát nhược điểm của DFS và Greedy.
+ 
+8.2. Nhóm thử nghiệm Eat-all-dots
+• Dùng cùng mê cung và cùng tập thức ăn cho tất cả thuật toán.
+ 
+• Tăng dần số viên thức ăn để quan sát sự bùng nổ trạng thái.
+ 
+• So sánh A* với nhiều heuristic khác nhau nếu có thể.
+ 
+• Đặt giới hạn thời gian hoặc bộ nhớ cho trường hợp thuật toán không hoàn thành.
+ 
+ Chỉ số
+ Ý nghĩa
+Tìm được lời giải
+Đánh giá tính đầy đủ trong trường hợp thử nghiệm.
+Độ dài đường đi
+Số bước Pac-man thực hiện.
+Tổng chi phí
+Quan trọng khi chi phí hành động không đồng nhất.
+Số node mở rộng
+Phản ánh mức công việc tìm kiếm thực hiện.
+Số node sinh ra
+Cho biết tổng số trạng thái được tạo.
+Frontier lớn nhất
+Chỉ báo gần đúng cho nhu cầu bộ nhớ.
+Thời gian chạy
+Hiệu năng thực tế, nên đo nhiều lần.
+Đồ án Pac-man - Phân tích lựa chọn thuật toán
+Trang 4/5
+
+9. Kết luận đề xuất cho báo cáo
+Với bài toán đơn giản và không gian trạng thái nhỏ, BFS là lựa chọn phù hợp vì dễ cài đặt và bảo
+đảm tìm đường ngắn nhất khi chi phí các bước bằng nhau. Khi độ phức tạp tăng, đặc biệt trong
+bài toán Eat-all-dots, A* thường chiếm ưu thế nhờ heuristic giúp định hướng tìm kiếm và giảm số
+trạng thái cần mở rộng. Trong trường hợp ưu tiên tốc độ hơn tính tối ưu, Greedy Best-First Search
+có thể là lựa chọn thực dụng hơn. UCS phù hợp khi chi phí hành động không đồng nhất nhưng
+chưa có heuristic tốt, còn DFS phù hợp chủ yếu khi bộ nhớ hạn chế và chỉ cần một lời giải bất kỳ.
+ Lưu ý quan trọng: “phức tạp” không tự động đồng nghĩa A* luôn nhanh nhất. A*
+ chỉ thật sự phát huy lợi thế khi heuristic đủ tốt và bộ nhớ vẫn đáp ứng được.
+Tài liệu tham khảo
+[1] CS 188: Introduction to Artificial Intelligence, UC Berkeley. Các phần State Spaces and Search Problems,
+Uninformed Search, Informed Search và Heuristics.
+[2] Slide học phần Trí tuệ nhân tạo - Trường Đại học Cần Thơ, các nội dung BFS, DFS, UCS, Greedy, A* và phân tích
+không gian trạng thái.
+Ghi chú: Đây là tài liệu phân tích tham khảo. Các kết luận định lượng trong báo cáo chính thức cần được thay thế
+hoặc củng cố bằng số liệu thực nghiệm từ chương trình của nhóm.
+Đồ án Pac-man - Phân tích lựa chọn thuật toán
+Trang 5/5

@@ -14,12 +14,17 @@ import { effects } from "../game/effects";
 const EMPTY_TREE_META = { truncated: false, limit: 0 };
 const EMPTY_STEP_STATE = { current: 0, total: null, complete: false };
 
+function isAbortError(error) {
+  return error?.name === "AbortError";
+}
+
 function staticKey(cfg) {
   return JSON.stringify({
     map: cfg.map,
     algorithm: cfg.algorithm,
     heuristic: cfg.heuristic,
     problem: cfg.problem,
+    goal: cfg.goal || null,
   });
 }
 
@@ -29,6 +34,7 @@ function compareKey(cfg) {
     algorithms: cfg.compareAlgos && cfg.compareAlgos.length ? [...cfg.compareAlgos].sort() : [],
     heuristic: cfg.heuristic,
     problem: cfg.problem,
+    goal: cfg.goal || null,
   });
 }
 
@@ -50,7 +56,8 @@ function compareTotal(rows) {
 }
 
 export function useRunner(rendererRef) {
-  const [status, setStatus] = useState("Ready");
+  const [status, setStatus] = useState("Sẵn sàng");
+  const [phase, setPhase] = useState("idle");
   const [stats, setStats] = useState(null);     // {nodes_expanded, time_ms, ...}
   const [compareRows, setCompareRows] = useState([]);
   const [compareTreeStep, setCompareTreeStep] = useState(null);
@@ -66,6 +73,8 @@ export function useRunner(rendererRef) {
   const stopRef = useRef(false);
   const pausedRef = useRef(false);
   const runningRef = useRef(false);
+  const abortRef = useRef(null);
+  const operationRef = useRef(0);
 
   // Lưu kết quả lần chạy gần nhất cho chế độ "Từng bước".
   const lastSolveRef = useRef(null);
@@ -83,6 +92,23 @@ export function useRunner(rendererRef) {
 
   const shouldStop = useCallback(() => stopRef.current, []);
   const shouldPause = useCallback(() => pausedRef.current, []);
+  const isCurrentOperation = useCallback((id) => operationRef.current === id, []);
+
+  const beginOperation = useCallback(() => {
+    abortRef.current?.abort();
+    const id = operationRef.current + 1;
+    const controller = new AbortController();
+    operationRef.current = id;
+    abortRef.current = controller;
+    return { id, signal: controller.signal };
+  }, []);
+
+  const finishOperation = useCallback((id) => {
+    if (!isCurrentOperation(id)) return;
+    abortRef.current = null;
+    runningRef.current = false;
+    setBusy(false);
+  }, [isCurrentOperation]);
 
   const stopAnimation = useCallback(() => {
     stopRef.current = true;
@@ -104,23 +130,28 @@ export function useRunner(rendererRef) {
 
   // ---- Chạy chế độ tĩnh ----
   const solveAndAnimate = useCallback(
-    async (cfg) => {
+    async (cfg, operation) => {
       const r = rendererRef.current;
-      setStatus("Running " + cfg.algorithm + "...");
+      setStatus(`Đang chuẩn bị ${cfg.algorithm.toUpperCase()}`);
       const result = await Api.solve({
         map: cfg.map,
         algorithm: cfg.algorithm,
         heuristic: cfg.heuristic,
         problem: cfg.problem,
-      });
+        goal: cfg.goal || null,
+      }, { signal: operation.signal });
+      if (!isCurrentOperation(operation.id)) return;
       lastSolveRef.current = result;
       lastSolveKeyRef.current = staticKey(cfg);
       setTree(result.tree || []);
       setTreeMeta({ truncated: !!result.tree_truncated, limit: result.tree_limit || 0 });
+      setPhase("replaying");
+      setStatus("Đang duyệt cây tìm kiếm");
 
       if (!result.found) {
         setStats(result.stats);
-        setStatus("No solution found");
+        setStatus("Không tìm thấy lời giải");
+        setPhase("complete");
         const lastNode = expandedTreeNodes(result).at(-1);
         r.visited = [];
         r.path = [];
@@ -134,18 +165,23 @@ export function useRunner(rendererRef) {
         result.tree,
         Math.max(4, delay / 4),
         shouldStop,
-        setSearchStep,
+        (step) => {
+          if (isCurrentOperation(operation.id)) setSearchStep(step);
+        },
         shouldPause
       );
-      if (shouldStop()) return;
+      if (shouldStop() || !isCurrentOperation(operation.id)) return;
       r.reset();
+      setStatus("Đang mô phỏng đường đi");
       await r.animatePath(result.path, delay, shouldStop, shouldPause);
+      if (shouldStop() || !isCurrentOperation(operation.id)) return;
 
       setStats(result.stats);
-      setStatus("Complete");
+      setStatus("Hoàn tất");
+      setPhase("complete");
       audio.win();
     },
-    [rendererRef, shouldStop, shouldPause, stepDelay]
+    [rendererRef, shouldStop, shouldPause, stepDelay, isCurrentOperation]
   );
 
   // ---- Các hành động công khai ----
@@ -157,12 +193,15 @@ export function useRunner(rendererRef) {
       wireRenderer();
       r.reset();
       effects.clear();
+      const operation = beginOperation();
       stopRef.current = false;
+      pausedRef.current = false;
       runningRef.current = true;
       staticStepRef.current = 0;
       setStepState(EMPTY_STEP_STATE);
       setSearchStep(0);
       setBusy(true);
+      setPhase("solving");
       setCompareRows([]);
       setCompareTreeStep(null);
       setCompareStepState(EMPTY_STEP_STATE);
@@ -171,26 +210,32 @@ export function useRunner(rendererRef) {
       compareTotalRef.current = 0;
       audio.start();
       try {
-        await solveAndAnimate(cfg);
+        await solveAndAnimate(cfg, operation);
       } catch (e) {
-        setStatus("Error: " + e.message);
-        console.error(e);
+        if (isCurrentOperation(operation.id) && !isAbortError(e)) {
+          setStatus("Lỗi: " + e.message);
+          setPhase("error");
+          console.error(e);
+        }
       } finally {
-        runningRef.current = false;
-        setBusy(false);
+        finishOperation(operation.id);
       }
     },
-    [rendererRef, wireRenderer, solveAndAnimate]
+    [rendererRef, wireRenderer, solveAndAnimate, beginOperation, finishOperation, isCurrentOperation]
   );
 
   const pause = useCallback(() => {
     if (!runningRef.current) return;
     pausedRef.current = !pausedRef.current;
     setPaused(pausedRef.current);
-    setStatus(pausedRef.current ? "Paused" : "Running...");
+    setPhase(pausedRef.current ? "paused" : "replaying");
+    setStatus(pausedRef.current ? "Tạm dừng" : "Đang chạy");
   }, []);
 
   const reset = useCallback(() => {
+    operationRef.current += 1;
+    abortRef.current?.abort();
+    abortRef.current = null;
     stopAnimation();
     const r = rendererRef.current;
     if (r) r.reset();
@@ -209,7 +254,9 @@ export function useRunner(rendererRef) {
     setCompareStepState(EMPTY_STEP_STATE);
     setTree([]);
     setTreeMeta(EMPTY_TREE_META);
-    setStatus("Reset");
+    setBusy(false);
+    setPhase("idle");
+    setStatus("Sẵn sàng");
   }, [rendererRef, stopAnimation]);
 
   // Vẽ lại trạng thái tĩnh TẤT ĐỊNH tại một bước cụ thể (dùng cho tới/lui).
@@ -241,7 +288,8 @@ export function useRunner(rendererRef) {
           r.setSearchTimeline(treeNodes.slice(0, s));
         }
         r.draw();
-        setStatus(s === 0 ? "Start" : `Node ${s}/${treeNodes.length}`);
+        setStatus(s === 0 ? "Bắt đầu" : `Đang duyệt node ${s}/${treeNodes.length}`);
+        setPhase(s === total ? "complete" : "paused");
         return;
       }
 
@@ -260,7 +308,8 @@ export function useRunner(rendererRef) {
       r.setPacman(cur, dir);
       r._mouthPhase += 0.9;
       r.draw();
-      setStatus(`Step ${walk}/${path.length}`);
+      setStatus(`Đang chạy đường đi ${walk}/${path.length}`);
+      setPhase(s === total ? "complete" : "paused");
     },
     [rendererRef]
   );
@@ -282,14 +331,19 @@ export function useRunner(rendererRef) {
       // Lần đầu (chưa solve): gọi API, dựng cây, đứng ở bước 0.
       if (!lastSolveRef.current) {
         if (dir < 0) return; // chưa có gì để lùi
+        const operation = beginOperation();
         setBusy(true);
+        setPhase("solving");
+        setStatus("Đang chuẩn bị bước đầu");
         try {
           const result = await Api.solve({
             map: cfg.map,
             algorithm: cfg.algorithm,
             heuristic: cfg.heuristic,
             problem: cfg.problem,
-          });
+            goal: cfg.goal || null,
+          }, { signal: operation.signal });
+          if (!isCurrentOperation(operation.id)) return;
           lastSolveRef.current = result;
           lastSolveKeyRef.current = key;
           staticStepRef.current = 0;
@@ -301,16 +355,20 @@ export function useRunner(rendererRef) {
           r.reset();
           if (!result.found) {
             setStats(result.stats);
-            setStatus("Not found");
+            setStatus("Không tìm thấy lời giải");
+            setPhase("complete");
             return;
           }
           setStats(result.stats);
           renderStaticAt(1);
         } catch (e) {
-          setStatus("Error: " + e.message);
-          console.error(e);
+          if (isCurrentOperation(operation.id) && !isAbortError(e)) {
+            setStatus("Lỗi: " + e.message);
+            setPhase("error");
+            console.error(e);
+          }
         } finally {
-          setBusy(false);
+          finishOperation(operation.id);
         }
         return;
       }
@@ -319,64 +377,74 @@ export function useRunner(rendererRef) {
       const total = expandedTreeNodes(solve).length + (solve.path || []).length;
       const next = staticStepRef.current + dir;
       if (next < 0) {
-        setStatus("Already at the first step");
+        setStatus("Đã ở bước đầu tiên");
         return;
       }
       if (next > total) {
-        setStatus("End of path reached");
+        setStatus("Đã đến cuối đường đi");
         return;
       }
       renderStaticAt(next);
       if (dir > 0 && next > expandedTreeNodes(solve).length) audio.eat();
     },
-    [rendererRef, renderStaticAt]
+    [rendererRef, renderStaticAt, beginOperation, finishOperation, isCurrentOperation]
   );
 
   const compare = useCallback(async (cfg) => {
-    const algos =
-      cfg.compareAlgos && cfg.compareAlgos.length
-        ? cfg.compareAlgos
-        : ["bfs", "dfs", "ucs", "greedy", "astar"];
+    const algos = cfg.compareAlgos || [];
+    if (algos.length < 2) {
+      setStatus("Chọn ít nhất 2 thuật toán để so sánh");
+      setPhase("error");
+      return;
+    }
+    const operation = beginOperation();
     setBusy(true);
-    setStatus("Comparing " + algos.length + " algorithms...");
+    setPhase("solving");
+    setStatus(`Đang so sánh ${algos.length} thuật toán`);
     try {
       const result = await Api.compare({
         map: cfg.map,
         algorithms: algos,
         heuristic: cfg.heuristic,
         problem: cfg.problem,
-      });
+        goal: cfg.goal || null,
+      }, { signal: operation.signal });
+      if (!isCurrentOperation(operation.id)) return;
       setCompareRows(result.results);
       lastCompareKeyRef.current = compareKey(cfg);
       compareTotalRef.current = compareTotal(result.results);
       compareStepRef.current = compareTotalRef.current;
       setCompareStepState({ current: compareStepRef.current, total: compareTotalRef.current, complete: true });
       setCompareTreeStep(null);
-      setStatus("Comparison complete");
+      setStatus("So sánh hoàn tất");
+      setPhase("complete");
     } catch (e) {
-      setStatus("Comparison error: " + e.message);
-      console.error(e);
+      if (isCurrentOperation(operation.id) && !isAbortError(e)) {
+        setStatus("Lỗi so sánh: " + e.message);
+        setPhase("error");
+        console.error(e);
+      }
     } finally {
-      setBusy(false);
+      finishOperation(operation.id);
     }
-  }, []);
+  }, [beginOperation, finishOperation, isCurrentOperation]);
 
-  const loadCompareRows = useCallback(async (cfg) => {
-    const algos =
-      cfg.compareAlgos && cfg.compareAlgos.length
-        ? cfg.compareAlgos
-        : ["bfs", "dfs", "ucs", "greedy", "astar"];
+  const loadCompareRows = useCallback(async (cfg, operation) => {
+    const algos = cfg.compareAlgos || [];
+    if (algos.length < 2) throw new Error("Chọn ít nhất 2 thuật toán để so sánh");
     const result = await Api.compare({
       map: cfg.map,
       algorithms: algos,
       heuristic: cfg.heuristic,
       problem: cfg.problem,
-    });
+      goal: cfg.goal || null,
+    }, { signal: operation.signal });
+    if (!isCurrentOperation(operation.id)) return null;
     setCompareRows(result.results);
     lastCompareKeyRef.current = compareKey(cfg);
     compareTotalRef.current = compareTotal(result.results);
     return result.results;
-  }, []);
+  }, [isCurrentOperation]);
 
   const waitForCompareTick = useCallback(async (delay) => {
     let remaining = delay;
@@ -400,76 +468,105 @@ export function useRunner(rendererRef) {
     compareStepRef.current = s;
     setCompareTreeStep(s);
     setCompareStepState({ current: s, total, complete: s === total });
-    setStatus(s === 0 ? "Comparison start" : `Comparison tree step ${s}/${total}`);
+    setStatus(s === 0 ? "Bắt đầu so sánh cây" : `Bước cây so sánh ${s}/${total}`);
   }, []);
 
   const runCompareTree = useCallback(async (cfg) => {
     if (runningRef.current) return;
     stopRef.current = false;
     pausedRef.current = false;
+    const operation = beginOperation();
     runningRef.current = true;
     setPaused(false);
     setBusy(true);
-    setStatus("Preparing comparison tree...");
+    setPhase("solving");
+    setStatus("Đang chuẩn bị cây so sánh");
     try {
-      await loadCompareRows(cfg);
+      const rows = await loadCompareRows(cfg, operation);
+      if (!rows || !isCurrentOperation(operation.id)) return;
       compareStepRef.current = 0;
       setCompareTreeStep(0);
       setCompareStepState({ current: 0, total: compareTotalRef.current, complete: compareTotalRef.current === 0 });
+      setPhase("replaying");
       const delay = stepDelay(cfg.speed);
       for (let s = 1; s <= compareTotalRef.current; s++) {
-        if (shouldStop()) return;
+        if (shouldStop() || !isCurrentOperation(operation.id)) return;
         renderCompareAt(s);
         await waitForCompareTick(delay);
       }
-      setStatus("Comparison tree complete");
+      if (!isCurrentOperation(operation.id)) return;
+      setStatus("Cây so sánh hoàn tất");
+      setPhase("complete");
       audio.win();
     } catch (e) {
-      setStatus("Comparison error: " + e.message);
-      console.error(e);
+      if (isCurrentOperation(operation.id) && !isAbortError(e)) {
+        setStatus("Lỗi so sánh: " + e.message);
+        setPhase("error");
+        console.error(e);
+      }
     } finally {
-      runningRef.current = false;
-      setBusy(false);
+      finishOperation(operation.id);
     }
-  }, [loadCompareRows, renderCompareAt, shouldStop, stepDelay, waitForCompareTick]);
+  }, [beginOperation, finishOperation, isCurrentOperation, loadCompareRows, renderCompareAt, shouldStop, stepDelay, waitForCompareTick]);
 
   const stepCompareTree = useCallback(async (cfg, dir = 1) => {
     if (runningRef.current) return;
     const key = compareKey(cfg);
     if (lastCompareKeyRef.current !== key || !compareTotalRef.current) {
       if (dir < 0) return;
+      const operation = beginOperation();
       setBusy(true);
+      setPhase("solving");
+      setStatus("Đang chuẩn bị cây so sánh");
       try {
-        await loadCompareRows(cfg);
+        const rows = await loadCompareRows(cfg, operation);
+        if (!rows || !isCurrentOperation(operation.id)) return;
         compareStepRef.current = 0;
         setCompareTreeStep(0);
         setCompareStepState({ current: 0, total: compareTotalRef.current, complete: compareTotalRef.current === 0 });
       } catch (e) {
-        setStatus("Comparison error: " + e.message);
-        console.error(e);
+        if (isCurrentOperation(operation.id) && !isAbortError(e)) {
+          setStatus("Lỗi so sánh: " + e.message);
+          setPhase("error");
+          console.error(e);
+        }
       } finally {
-        setBusy(false);
+        finishOperation(operation.id);
       }
     }
     const next = compareStepRef.current + dir;
     if (next < 0) {
-      setStatus("Already at the first comparison step");
+      setStatus("Đã ở bước so sánh đầu tiên");
       return;
     }
     if (next > compareTotalRef.current) {
-      setStatus("Comparison tree complete");
+      setStatus("Cây so sánh hoàn tất");
       return;
     }
     renderCompareAt(next);
-  }, [loadCompareRows, renderCompareAt]);
+    setPhase(next === compareTotalRef.current ? "complete" : "paused");
+  }, [beginOperation, finishOperation, isCurrentOperation, loadCompareRows, renderCompareAt]);
+
+  const treeTotal = lastTreeStep(tree);
+  const currentNode = tree.find((node) => node.expanded_order === Math.max(0, searchStep - 1)) || null;
+  const progress = {
+    step: stepState.total == null ? searchStep : stepState.current,
+    total: stepState.total ?? treeTotal,
+    current: currentNode,
+  };
+  const compareProgress = {
+    step: compareStepState.current,
+    total: compareStepState.total ?? 0,
+    current: null,
+  };
 
   return {
-    status, stats, compareRows, compareTreeStep, tree, treeMeta, searchStep, busy, paused,
+    status, phase, progress, compareProgress, stats, compareRows, compareTreeStep, tree, treeMeta, searchStep, busy, paused,
     canStepBack: stepState.current > 0,
     canStepNext: !stepState.complete,
     compareCanStepBack: compareStepState.current > 0,
     compareCanStepNext: !compareStepState.complete,
-    isComplete: stepState.complete,
+    isComplete: phase === "complete" || stepState.complete,
     runStatic, pause, stepStatic, reset, compare, runCompareTree, stepCompareTree, stopAnimation, setStatus,
   };
 }

@@ -42,13 +42,46 @@ def test_get_unknown_map_404():
 def test_solve_bfs_path_to_farthest():
     r = client.post(
         "/solve",
-        json={"map": "small", "algorithm": "bfs", "problem": "path_to_farthest"},
+        json={"map": "small", "algorithm": "bfs", "problem": "path_to_cell"},
     )
     assert r.status_code == 200
     data = r.json()
     assert data["found"] is True
     assert len(data["path"]) >= 1
     assert data["stats"]["nodes_expanded"] >= 1
+
+
+def test_solve_path_to_cell_with_clicked_goal():
+    # Ô đích do người dùng "click": lấy chính ô xuất phát Pac-man (chắc chắn đi được).
+    m = client.get("/maps/small").json()
+    goal = m["pacman_start"]
+    r = client.post(
+        "/solve",
+        json={"map": "small", "algorithm": "bfs", "problem": "path_to_cell", "goal": goal},
+    )
+    assert r.status_code == 200
+    data = r.json()
+    assert data["found"] is True
+    # Đích = ô xuất phát -> đường đi chỉ gồm 1 ô.
+    assert data["path"][-1] == goal
+
+
+def test_solve_path_to_cell_goal_on_wall_400():
+    m = client.get("/maps/small").json()
+    wall = m["walls"][0]
+    r = client.post(
+        "/solve",
+        json={"map": "small", "algorithm": "bfs", "problem": "path_to_cell", "goal": wall},
+    )
+    assert r.status_code == 400
+
+
+def test_solve_path_to_cell_goal_out_of_bounds_400():
+    r = client.post(
+        "/solve",
+        json={"map": "small", "algorithm": "bfs", "problem": "path_to_cell", "goal": [999, 999]},
+    )
+    assert r.status_code == 400
 
 
 def test_solve_astar_eat_all():
@@ -98,7 +131,7 @@ def test_compare_returns_rows():
 def test_solve_path_to_farthest_returns_tree():
     r = client.post(
         "/solve",
-        json={"map": "small", "algorithm": "astar", "problem": "path_to_farthest"},
+        json={"map": "small", "algorithm": "astar", "problem": "path_to_cell"},
     )
     assert r.status_code == 200
     tree = r.json()["tree"]
@@ -132,7 +165,7 @@ def test_compare_path_to_farthest_has_tree_and_optimal():
         json={
             "map": "small",
             "algorithms": ["astar", "greedy", "bfs"],
-            "problem": "path_to_farthest",
+            "problem": "path_to_cell",
         },
     )
     assert r.status_code == 200

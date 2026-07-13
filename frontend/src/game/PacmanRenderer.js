@@ -25,6 +25,7 @@ export class PacmanRenderer {
 
     this.visited = [];
     this.path = [];
+    this.goal = null; // ô đích do người dùng click (bài path_to_cell)
 
     this.pacman = null;
     this.pacDir = "RIGHT";
@@ -36,6 +37,7 @@ export class PacmanRenderer {
     this.offsetX = 0;
     this.offsetY = 0;
     this._mouthPhase = 0;
+    this.reducedMotion = false;
 
     // Hook hiệu ứng: gọi khi Pac-man ăn food/pellet (gán từ ngoài).
     this.onEat = null; // (centerX, centerY, isPellet) => void
@@ -82,17 +84,78 @@ export class PacmanRenderer {
     if (dir) this.pacDir = dir;
   }
 
-  setSearchNode(node, { animate = true } = {}) {
+  setGoal(rc) {
+    this.goal = rc ? rc.slice() : null;
+    this.draw();
+  }
+
+  clearGoal() {
+    this.goal = null;
+    this.draw();
+  }
+
+  nextGoalCell(current, key) {
+    if (!this.map) return null;
+    const delta = {
+      ArrowUp: [-1, 0],
+      ArrowDown: [1, 0],
+      ArrowLeft: [0, -1],
+      ArrowRight: [0, 1],
+    }[key];
+    const start = current || this.goal || this.pacman || this.map.pacman_start;
+    if (!delta || !start) return start ? start.slice() : null;
+    const next = [start[0] + delta[0], start[1] + delta[1]];
+    const valid = next[0] >= 0 && next[0] < this.map.height
+      && next[1] >= 0 && next[1] < this.map.width
+      && !this._walls.has(this._key(next));
+    return valid ? next : start.slice();
+  }
+
+  // Quy đổi toạ độ con trỏ (clientX/Y) -> ô [row, col] trên bản đồ.
+  // Canvas có thể bị CSS scale nên phải nhân tỉ lệ theo getBoundingClientRect.
+  // Trả null nếu ngoài bản đồ hoặc trúng tường (ô không hợp lệ làm đích).
+  pixelToCell(clientX, clientY) {
+    if (!this.map) return null;
+    const rect = this.canvas.getBoundingClientRect();
+    const sx = this.canvas.width / rect.width;
+    const sy = this.canvas.height / rect.height;
+    const x = (clientX - rect.left) * sx;
+    const y = (clientY - rect.top) * sy;
+    const col = Math.floor((x - this.offsetX) / this.cell);
+    const row = Math.floor((y - this.offsetY) / this.cell);
+    if (row < 0 || row >= this.map.height || col < 0 || col >= this.map.width) return null;
+    if (this._walls.has(this._key([row, col]))) return null;
+    return [row, col];
+  }
+
+  // Pha duyệt cây: Pac-man nhảy giữa các node theo expanded_order (không phải
+  // đường đi). Ta KHÔNG set lại food theo food-state của node (sẽ khiến food
+  // "hiện lại" khi expand nhảy sang nhánh nông hơn), mà chỉ XÓA food tại ô
+  // Pac-man đang đứng. Nhờ vậy food giảm đơn điệu: tới ô nào ăn ô đó, mất hẳn.
+  setSearchNode(node, { animate = true, effect = true } = {}) {
     if (!node) return;
     this.setPacman(node.pos, node.action || this._dirOf(this.pacman, node.pos));
     this._prevPacman = node.pos.slice();
-    if (node.food) this.food = new Set(node.food.map((p) => this._key(p)));
-    if (node.power_pellets) this.pellets = new Set(node.power_pellets.map((p) => this._key(p)));
+    this._eatAt(node.pos, effect);
     if (animate) this._mouthPhase += 0.9;
   }
 
+  // Xóa food/pellet tại ô `rc` (nếu có) và bắn hiệu ứng ăn.
+  _eatAt(rc, effect = true) {
+    const k = this._key(rc);
+    const ateFood = this.food.delete(k);
+    const atePellet = this.pellets.delete(k);
+    if (effect && this.onEat && (ateFood || atePellet)) {
+      const [x, y] = this._px(rc);
+      this.onEat(x + this.cell / 2, y + this.cell / 2, atePellet);
+    }
+  }
+
+  // Dựng lại trạng thái tại một mốc timeline: ăn dồn tất cả ô đã đi qua (để
+  // step tới/lui vẫn đơn điệu), chỉ node cuối mới bắn hiệu ứng.
   setSearchTimeline(nodes) {
     if (!nodes || nodes.length === 0) return;
+    for (let i = 0; i < nodes.length - 1; i++) this._eatAt(nodes[i].pos, false);
     this.setSearchNode(nodes.at(-1));
   }
 
@@ -103,9 +166,33 @@ export class PacmanRenderer {
     this._drawVisited();
     this._drawWalls();
     this._drawFood();
+    this._drawGoal();
     this._drawPath();
     this._drawGhosts();
     this._drawPacman();
+  }
+
+  // Ô đích do người dùng chọn (bài path_to_cell): viền vuông nhấp nháy + chữ thập
+  // ở giữa, màu inky cyan để phân biệt với đường đi (vàng) và ô đã duyệt.
+  _drawGoal() {
+    if (!this.goal) return;
+    const { ctx, cell } = this;
+    const [x, y] = this._px(this.goal);
+    const blink = this.reducedMotion ? 1 : 0.55 + 0.45 * Math.sin(Date.now() / 200);
+    ctx.save();
+    ctx.strokeStyle = `rgba(${VISITED_RGB}, ${blink})`;
+    ctx.lineWidth = Math.max(2, cell * 0.12);
+    ctx.strokeRect(x + 3, y + 3, cell - 6, cell - 6);
+    const cx = x + cell / 2;
+    const cy = y + cell / 2;
+    const r = cell * 0.22;
+    ctx.beginPath();
+    ctx.moveTo(cx - r, cy);
+    ctx.lineTo(cx + r, cy);
+    ctx.moveTo(cx, cy - r);
+    ctx.lineTo(cx, cy + r);
+    ctx.stroke();
+    ctx.restore();
   }
 
   _px(rc) {
@@ -135,7 +222,7 @@ export class PacmanRenderer {
       ctx.arc(x + cell / 2, y + cell / 2, Math.max(2, cell * 0.09), 0, Math.PI * 2);
       ctx.fill();
     }
-    const blink = Math.floor(Date.now() / 350) % 2 === 0;
+    const blink = this.reducedMotion || Math.floor(Date.now() / 350) % 2 === 0;
     ctx.fillStyle = blink ? PELLET_ON : PELLET_OFF;
     for (const k of this.pellets) {
       const [r, c] = k.split(",").map(Number);
@@ -273,15 +360,8 @@ export class PacmanRenderer {
         if (i >= pathCells.length) return resolve();
         const cur = pathCells[i];
         if (i > 0) {
-          const prev = pathCells[i - 1];
-          this.pacDir = this._dirOf(prev, cur);
-          const k = this._key(cur);
-          const ateFood = this.food.delete(k);
-          const atePellet = this.pellets.delete(k);
-          if (this.onEat && (ateFood || atePellet)) {
-            const [x, y] = this._px(cur);
-            this.onEat(x + this.cell / 2, y + this.cell / 2, atePellet);
-          }
+          this.pacDir = this._dirOf(pathCells[i - 1], cur);
+          this._eatAt(cur);
         }
         this.pacman = cur.slice();
         this._prevPacman = cur.slice();

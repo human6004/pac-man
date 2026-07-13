@@ -113,3 +113,24 @@ def farthest_food(state: GameState) -> Position | None:
         return None
     pr, pc = state.pacman
     return max(state.food, key=lambda f: abs(f[0] - pr) + abs(f[1] - pc))
+
+
+def farthest_cell(state: GameState) -> Position | None:
+    """Trả về ô ĐI ĐƯỢC (không phải tường) xa Pac-man nhất theo Manhattan.
+
+    Dùng làm goal mặc định cho bài "đi tới ô chỉ định" khi người dùng chưa click:
+    khác `farthest_food` ở chỗ không đòi ô đích phải có food — mọi ô trống đều hợp lệ.
+    Ô xa nhất tạo đường đi dài, phân biệt rõ đặc tính các thuật toán.
+    """
+    pr, pc = state.pacman
+    best: Position | None = None
+    best_d = -1
+    for r in range(state.height):
+        for c in range(state.width):
+            if (r, c) in state.walls or (r, c) == state.pacman:
+                continue
+            d = abs(r - pr) + abs(c - pc)
+            if d > best_d:
+                best_d = d
+                best = (r, c)
+    return best

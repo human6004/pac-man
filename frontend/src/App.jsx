@@ -1,128 +1,209 @@
-// App.jsx — Orchestrator chính: nối renderer (canvas) + hooks điều phối + UI.
-//
-// - Tạo PacmanRenderer trên canvas (qua ref) và giữ trong rendererRef.
-// - Vòng lặp requestAnimationFrame: vẽ lại liên tục để pellet và miệng Pac-man
-//   luôn động, đồng thời cập nhật + vẽ particle.
-// - Nạp bản đồ khi đổi map; điều phối chạy/pause/step/reset/compare qua useRunner.
-
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Cabinet } from "./components/Cabinet";
-import { CRTScreen } from "./components/CRTScreen";
-import { ControlDeck } from "./components/ControlDeck";
-import { StatsPanel } from "./components/StatsPanel";
-import { ProblemModelPanel } from "./components/ProblemModelPanel";
-import { CompareTable } from "./components/CompareTable";
-import { ComparisonView } from "./components/ComparisonView";
-import { CompareCharts } from "./components/CompareCharts";
-import { FghChart } from "./components/FghChart";
-import { SearchTreePanel } from "./components/SearchTreePanel";
-import { PacmanRenderer } from "./game/PacmanRenderer";
-import { effects } from "./game/effects";
-import { audio } from "./sound/audio";
 import { Api } from "./api/client";
+import { Cabinet } from "./components/Cabinet";
+import { CompareCharts } from "./components/CompareCharts";
+import { CompareTable } from "./components/CompareTable";
+import { ComparisonTrees, ComparisonView } from "./components/ComparisonView";
+import { ControlDeck } from "./components/ControlDeck";
+import { CRTScreen } from "./components/CRTScreen";
+import { FghChart } from "./components/FghChart";
+import { ProblemModelPanel } from "./components/ProblemModelPanel";
+import { SearchTreePanel } from "./components/SearchTreePanel";
+import { StatsPanel } from "./components/StatsPanel";
+import { effects } from "./game/effects";
+import { PacmanRenderer } from "./game/PacmanRenderer";
 import { useMetadata } from "./hooks/useMetadata";
 import { useRunner } from "./hooks/useRunner";
+import { audio } from "./sound/audio";
+import { applyTheme, getInitialTheme, persistTheme } from "./theme";
 
 const DEFAULT_CFG = {
   map: "small",
   problem: "eat_all",
   algorithm: "astar",
-  heuristic: "farthest_food", // khớp bài eat_all; path_to_farthest sẽ tự đổi sang manhattan
+  heuristic: "farthest_food",
   speed: 12,
-  runMode: "auto", // "auto" = tự chạy | "step" = bấm từng bước
+  runMode: "auto",
   compareAlgos: ["astar", "greedy"],
+  goal: null,
 };
+
+const PHASE_LABEL = {
+  idle: "Sẵn sàng",
+  solving: "Đang giải bài toán",
+  replaying: "Đang mô phỏng",
+  paused: "Tạm dừng",
+  complete: "Hoàn tất",
+  error: "Có lỗi",
+};
+
+const formatCost = (value) => Number.isFinite(value) ? Math.round(value * 100) / 100 : "-";
+
+function StatusStrip({ runner, progress }) {
+  const node = progress?.current;
+  const position = node?.pos ? `(${node.pos[0]}, ${node.pos[1]})` : "-";
+  return (
+    <section className={`status-strip phase-${runner.phase}`} aria-live="polite" aria-atomic="true">
+      <div className="status-main">
+        <span>{PHASE_LABEL[runner.phase] || "Sẵn sàng"}</span>
+        <strong>{runner.status}</strong>
+      </div>
+      <div><span>Bước</span><strong>{progress?.step ?? 0}/{progress?.total ?? 0}</strong></div>
+      <div><span>CURRENT</span><strong>{position}</strong></div>
+      <div><span>Hành động</span><strong>{node?.action || "-"}</strong></div>
+      <div><span>Thức ăn</span><strong>{node?.food?.length ?? "-"}</strong></div>
+      <div className="status-costs">
+        <span style={{ color: "var(--color-g)" }}>g={formatCost(node?.g)}</span>
+        <span style={{ color: "var(--color-h)" }}>h={formatCost(node?.h)}</span>
+        <span style={{ color: "var(--color-f)" }}>f={formatCost(node?.f)}</span>
+      </div>
+    </section>
+  );
+}
 
 export default function App() {
   const canvasRef = useRef(null);
   const rendererRef = useRef(null);
-
   const meta = useMetadata();
+  const runner = useRunner(rendererRef);
+
   const [cfg, setCfg] = useState(DEFAULT_CFG);
+  const [tab, setTab] = useState("play");
+  const [activePane, setActivePane] = useState("map");
   const [soundOn, setSoundOn] = useState(true);
   const [poweron, setPoweron] = useState(true);
   const [mapError, setMapError] = useState(null);
-  const [tab, setTab] = useState("play"); // "play" = chạy 1 thuật toán | "compare" = so sánh
+  const [goalCursor, setGoalCursor] = useState(null);
+  const [theme, setTheme] = useState(getInitialTheme);
 
-  const runner = useRunner(rendererRef);
+  useEffect(() => applyTheme(theme), [theme]);
 
-  // Tạo renderer 1 lần khi canvas sẵn sàng + chạy vòng lặp vẽ.
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
-    const r = new PacmanRenderer(canvas);
-    rendererRef.current = r;
+    const renderer = new PacmanRenderer(canvas);
+    const motionQuery = window.matchMedia?.("(prefers-reduced-motion: reduce)");
+    const syncMotion = () => { renderer.reducedMotion = !!motionQuery?.matches; };
+    syncMotion();
+    motionQuery?.addEventListener?.("change", syncMotion);
+    rendererRef.current = renderer;
 
-    // Tôn trọng "giảm chuyển động": bỏ particle, chỉ vẽ game.
-    const reduceMotion = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
-
-    let raf;
+    let frame;
     const loop = () => {
-      const ctx = r.ctx;
-      if (reduceMotion) {
-        r.draw();
-      } else {
-        effects.update();
-        r.draw();
-        effects.draw(ctx);
-      }
-      raf = requestAnimationFrame(loop);
+      if (!renderer.reducedMotion) effects.update();
+      renderer.draw();
+      if (!renderer.reducedMotion) effects.draw(renderer.ctx);
+      frame = requestAnimationFrame(loop);
     };
-    raf = requestAnimationFrame(loop);
-    return () => cancelAnimationFrame(raf);
+    frame = requestAnimationFrame(loop);
+    return () => {
+      cancelAnimationFrame(frame);
+      motionQuery?.removeEventListener?.("change", syncMotion);
+    };
   }, []);
 
-  // Tắt cờ power-on sau khi animation chạy 1 lần.
   useEffect(() => {
-    const t = setTimeout(() => setPoweron(false), 700);
-    return () => clearTimeout(t);
+    const timer = setTimeout(() => setPoweron(false), 700);
+    return () => clearTimeout(timer);
   }, []);
 
-  // Nạp layout mỗi khi đổi bản đồ.
   useEffect(() => {
-    const r = rendererRef.current;
-    if (!r || meta.loading) return;
-    let alive = true;
+    const renderer = rendererRef.current;
+    if (!renderer || meta.loading) return;
+    const controller = new AbortController();
     (async () => {
       try {
-        const map = await Api.getMap(cfg.map);
-        if (!alive) return;
-        r.setMap(map);
+        const map = await Api.getMap(cfg.map, { signal: controller.signal });
+        renderer.setMap(map);
+        renderer.clearGoal();
+        setGoalCursor(null);
         effects.clear();
         runner.reset();
         setMapError(null);
-      } catch (e) {
-        if (alive) setMapError(e.message);
+      } catch (error) {
+        if (error?.name !== "AbortError") setMapError(error.message);
       }
     })();
-    return () => {
-      alive = false;
-    };
+    return () => controller.abort();
+    // runner changes on every state update; map loading only follows these values.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [cfg.map, meta.loading]);
 
-  // Đồng bộ bật/tắt âm thanh.
   useEffect(() => {
     audio.setEnabled(soundOn);
   }, [soundOn]);
 
-  const handleRun = useCallback(() => {
-    if (tab === "compare") return runner.runCompareTree(cfg);
-    return runner.runStatic(cfg);
-  }, [runner, cfg, tab]);
-  const handleStep = useCallback(() => {
-    if (tab === "compare") return runner.stepCompareTree(cfg, 1);
-    return runner.stepStatic(cfg, 1);
-  }, [runner, cfg, tab]);
-  const handleStepBack = useCallback(() => {
-    if (tab === "compare") return runner.stepCompareTree(cfg, -1);
-    return runner.stepStatic(cfg, -1);
-  }, [runner, cfg, tab]);
+  useEffect(() => {
+    const renderer = rendererRef.current;
+    if (!renderer) return;
+    if (cfg.problem !== "path_to_cell") {
+      renderer.clearGoal();
+    } else if (cfg.goal) {
+      renderer.setGoal(cfg.goal);
+    }
+  }, [cfg.problem, cfg.goal]);
+
+  const handleRun = useCallback(() => tab === "compare" ? runner.runCompareTree(cfg) : runner.runStatic(cfg), [runner, cfg, tab]);
+  const handleStep = useCallback(() => tab === "compare" ? runner.stepCompareTree(cfg, 1) : runner.stepStatic(cfg, 1), [runner, cfg, tab]);
+  const handleStepBack = useCallback(() => tab === "compare" ? runner.stepCompareTree(cfg, -1) : runner.stepStatic(cfg, -1), [runner, cfg, tab]);
   const handleCompare = useCallback(() => runner.compare(cfg), [runner, cfg]);
 
-  // Props chung cho mọi lần render ControlDeck (tránh lặp ~15 dòng mỗi chỗ).
+  const commitGoal = useCallback((cell) => {
+    if (!cell) return;
+    rendererRef.current?.setGoal(cell);
+    setGoalCursor(cell);
+    runner.reset();
+    setCfg((current) => ({ ...current, goal: cell }));
+  }, [runner]);
+
+  const handleCanvasClick = useCallback((event) => {
+    const cell = rendererRef.current?.pixelToCell(event.clientX, event.clientY);
+    commitGoal(cell);
+  }, [commitGoal]);
+
+  const handleCanvasKeyDown = useCallback((event) => {
+    if (cfg.problem !== "path_to_cell" || runner.busy) return;
+    const renderer = rendererRef.current;
+    if (!renderer) return;
+    if (event.key.startsWith("Arrow")) {
+      event.preventDefault();
+      const next = renderer.nextGoalCell(goalCursor || cfg.goal, event.key);
+      if (next) {
+        renderer.setGoal(next);
+        setGoalCursor(next);
+      }
+      return;
+    }
+    if (event.key === "Enter") {
+      event.preventDefault();
+      commitGoal(goalCursor || renderer.goal || renderer.pacman);
+    }
+    if (event.key === "Escape") {
+      event.preventDefault();
+      renderer.clearGoal();
+      setGoalCursor(null);
+      runner.reset();
+      setCfg((current) => ({ ...current, goal: null }));
+    }
+  }, [cfg.problem, cfg.goal, goalCursor, runner, commitGoal]);
+
+  const handleTabChange = (nextTab) => {
+    if (runner.busy) runner.reset();
+    setTab(nextTab);
+  };
+
+  const handleProblemChange = () => {
+    rendererRef.current?.clearGoal();
+    setGoalCursor(null);
+  };
+
+  const toggleTheme = () => {
+    const next = theme === "dark" ? "light" : "dark";
+    setTheme(next);
+    persistTheme(next);
+  };
+
   const deckProps = {
-    tab,
     maps: meta.maps,
     algorithms: meta.algorithms,
     heuristics: meta.heuristics,
@@ -133,100 +214,111 @@ export default function App() {
     paused: runner.paused,
     canStepBack: tab === "compare" ? runner.compareCanStepBack : runner.canStepBack,
     canStepNext: tab === "compare" ? runner.compareCanStepNext : runner.canStepNext,
-    isComplete: runner.isComplete,
-    soundOn,
-    onToggleSound: () => setSoundOn((s) => !s),
     onRun: handleRun,
     onPause: runner.pause,
     onStep: handleStep,
     onStepBack: handleStepBack,
     onReset: runner.reset,
     onCompare: handleCompare,
+    onProblemChange: handleProblemChange,
   };
 
-  const backendError = (meta.error || mapError) && (
-    <div className="crt-panel p-3 font-term text-[18px]" style={{ color: "var(--color-clyde)" }}>
-      {meta.error
-        ? `Cannot connect to backend (${Api.baseUrl}). Run: py -3.12 -m uvicorn backend.api.main:app`
-        : mapError}
-    </div>
-  );
+  const error = meta.error || mapError;
+  const goalEnabled = tab === "play" && cfg.problem === "path_to_cell" && !runner.busy;
 
   return (
-    <Cabinet>
-      {/* Thanh tab */}
-      <div className="flex gap-2 mb-4">
-        <button
-          className={`tab-btn ${tab === "play" ? "tab-on" : ""}`}
-          onClick={() => setTab("play")}
-        >
-          ▶ Run algorithm
-        </button>
-        <button
-          className={`tab-btn ${tab === "compare" ? "tab-on" : ""}`}
-          onClick={() => setTab("compare")}
-        >
-          ⊞ Compare algorithms
-        </button>
-      </div>
+    <Cabinet
+      tab={tab}
+      onTabChange={handleTabChange}
+      soundOn={soundOn}
+      onToggleSound={() => setSoundOn((value) => !value)}
+      theme={theme}
+      onToggleTheme={toggleTheme}
+    >
+      {error && (
+        <div className="inline-error" role="alert">
+          {meta.error ? `Không kết nối được backend tại ${Api.baseUrl}.` : mapError}
+        </div>
+      )}
 
-      {backendError}
+      {tab === "play" && (
+        <div className="play-page">
+          <ControlDeck {...deckProps} tab="play" section="settings" />
 
-      {/* Tab Play: đọc từ trên xuống theo luồng demo — cấu hình → chạy → xem kết quả.
-          Cột trái: cấu hình + màn hình + nút chạy. Cột phải: cây duyệt + số liệu. */}
-      <div className={tab === "play" ? "flex flex-col gap-4" : "hidden"}>
-        {/* Hàng chính: [màn hình + nút chạy] | [cây duyệt từng bước] cạnh nhau
-            -> vừa bấm Bước tiếp vừa theo dõi cây mọc. */}
-        <div className="grid gap-4 xl:grid-cols-[minmax(400px,540px)_minmax(560px,1fr)] items-start">
-          <div className="flex flex-col gap-4">
-            <div>
-              <CRTScreen ref={canvasRef} poweron={poweron} />
+          <div className="segmented pane-switch" role="group" aria-label="Pane đang thao tác">
+            <button type="button" aria-pressed={activePane === "map"} onClick={() => setActivePane("map")}>Bản đồ</button>
+            <button type="button" aria-pressed={activePane === "tree"} onClick={() => setActivePane("tree")}>Cây tìm kiếm</button>
+          </div>
+
+          <div className="run-workspace">
+            <section
+              className={`workspace-pane map-pane ${activePane === "map" ? "is-active" : "is-preview"}`}
+              onClick={() => setActivePane("map")}
+              onFocusCapture={() => setActivePane("map")}
+            >
+              <div className="panel-heading game-heading">
+                <div>
+                  <p className="section-kicker">Môi trường</p>
+                  <h2>Bản đồ trò chơi</h2>
+                </div>
+                {goalEnabled && <span className="status-note">Đang chọn đích</span>}
+              </div>
+              <CRTScreen
+                ref={canvasRef}
+                poweron={poweron}
+                onCanvasClick={goalEnabled ? handleCanvasClick : undefined}
+                onCanvasKeyDown={goalEnabled ? handleCanvasKeyDown : undefined}
+                goalEnabled={goalEnabled}
+                goal={goalCursor || cfg.goal}
+              />
+            </section>
+
+            <div
+              className={`workspace-pane tree-pane ${activePane === "tree" ? "is-active" : "is-preview"}`}
+              onClick={() => setActivePane("tree")}
+              onFocusCapture={() => setActivePane("tree")}
+            >
+              <SearchTreePanel
+                tree={runner.tree}
+                active
+                step={runner.searchStep}
+                treeMeta={runner.treeMeta}
+                problem={cfg.problem}
+                smoothFocus={cfg.runMode === "step"}
+              />
             </div>
-            <ControlDeck {...deckProps} section="run" />
           </div>
-          <SearchTreePanel
-            tree={runner.tree}
-            active
-            step={runner.searchStep}
-            treeMeta={runner.treeMeta}
-            problem={cfg.problem}
-          />
-        </div>
-        {/* Hàng dưới: [cấu hình + mô hình bài toán] | [số liệu] */}
-        <div className="grid gap-4 xl:grid-cols-[minmax(400px,540px)_minmax(560px,1fr)] items-start">
-          <div className="flex flex-col gap-4">
-            <ControlDeck {...deckProps} section="settings" />
-            <ProblemModelPanel problem={cfg.problem} />
-          </div>
+
+          <StatusStrip runner={runner} progress={runner.progress} />
+          <ControlDeck {...deckProps} tab="play" section="run" progress={runner.progress} />
           <StatsPanel stats={runner.stats} />
+          <ProblemModelPanel problem={cfg.problem} />
         </div>
-      </div>
+      )}
 
       {tab === "compare" && (
-        <div className="grid gap-5 lg:grid-cols-[1fr_320px] items-start">
-          <div className="flex flex-col gap-4 order-2 lg:order-1">
-            {runner.compareRows.length > 0 ? (
-              <>
-                <ComparisonView
-                  rows={runner.compareRows}
-                  algoInfo={meta.algoInfo}
-                  problem={cfg.problem}
-                  treeStep={runner.compareTreeStep}
-                />
-                <CompareTable rows={runner.compareRows} algoInfo={meta.algoInfo} />
-                <FghChart rows={runner.compareRows} algoInfo={meta.algoInfo} />
-                <CompareCharts rows={runner.compareRows} algoInfo={meta.algoInfo} />
-              </>
-            ) : (
-              <div className="crt-panel p-4 crt-label">
-                Select algorithms on the right, then click "Compare" to view results.
-              </div>
-            )}
-          </div>
-
-          <div className="order-1 lg:order-2">
-            <ControlDeck {...deckProps} />
-          </div>
+        <div className="compare-page">
+          <ControlDeck {...deckProps} tab="compare" />
+          {runner.compareRows.length > 0 ? (
+            <>
+              <ComparisonView rows={runner.compareRows} algoInfo={meta.algoInfo} />
+              <CompareTable rows={runner.compareRows} algoInfo={meta.algoInfo} />
+              <CompareCharts rows={runner.compareRows} algoInfo={meta.algoInfo} />
+              <ControlDeck {...deckProps} tab="compare" section="compare-playback" progress={runner.compareProgress} />
+              <ComparisonTrees
+                rows={runner.compareRows}
+                algoInfo={meta.algoInfo}
+                problem={cfg.problem}
+                treeStep={runner.compareTreeStep}
+              />
+              <FghChart rows={runner.compareRows} algoInfo={meta.algoInfo} />
+            </>
+          ) : (
+            <section className="lab-panel empty-compare">
+              <h2>So sánh có giải thích</h2>
+              <p>Chọn ít nhất hai thuật toán. Kết quả sẽ chỉ ra đường đi, lượng node, frontier, thời gian và lý do khác biệt.</p>
+            </section>
+          )}
         </div>
       )}
     </Cabinet>
