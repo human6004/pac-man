@@ -18,6 +18,7 @@ def _success(node: Node, metrics: SearchMetrics, visited_order, tree: TreeRecord
     actions, path = node.reconstruct()
     metrics.path_length = len(actions)
     metrics.cost = node.cost
+    metrics.goal_depth = node.depth
     metrics.found = True
     metrics.stop()
     return SearchResult(True, actions, path, visited_order, tree.nodes, metrics, tree.truncated, tree.limit)
@@ -38,22 +39,28 @@ def greedy(problem: SearchProblem, heuristic: Heuristic = null_heuristic, record
     start = problem.initial_state()
     counter = 0
     h0 = heuristic(start, problem)
-    start_node = Node(start)
+    start_node = Node(
+    state=start,
+    cost=0.0,
+    depth=0,
+    nid=0,
+)
     tree.created(start_node, h0)
     frontier = [(h0, counter, start_node)]
-    frontier_keys = {problem.state_key(start)}
+    frontier_states = {start}
     explored = set()
 
     while frontier:
         metrics.observe_frontier(len(frontier))
         _, _, node = heapq.heappop(frontier)
-        key = problem.state_key(node.state)
-        frontier_keys.discard(key)
-        if key in explored:
+        # Greedy
+        frontier_states.discard(node.state)
+        if node.state in explored:
             continue
-        explored.add(key)
+        explored.add(node.state)
+
         metrics.expand()
-        metrics.observe_depth(node.cost)
+        metrics.observe_depth(node.depth)
         visited_order.append(node.state.pacman)
         tree.expanded(node, heuristic(node.state, problem))
 
@@ -62,15 +69,23 @@ def greedy(problem: SearchProblem, heuristic: Heuristic = null_heuristic, record
 
         for action in problem.actions(node.state):
             nxt = problem.result(node.state, action)
-            k = problem.state_key(nxt)
-            if k in explored or k in frontier_keys:
+
+            if nxt in explored or nxt in frontier_states:
                 continue
+
             counter += 1
-            child = Node(nxt, node, action, node.cost + problem.step_cost(node.state, action, nxt), counter)
+            child = Node(
+                state=nxt,
+                parent=node,
+                action=action,
+                cost=node.cost + problem.step_cost(node.state, action, nxt),
+                depth=node.depth + 1,
+                nid=counter,
+            )
             h = heuristic(nxt, problem)
             tree.created(child, h)
             heapq.heappush(frontier, (h, counter, child))
-            frontier_keys.add(k)
+            frontier_states.add(nxt)
             metrics.generate()
 
     return _failure(metrics, visited_order, tree)
@@ -86,20 +101,25 @@ def astar(problem: SearchProblem, heuristic: Heuristic = null_heuristic, record_
     counter = 0
     g0 = 0.0
     h0 = heuristic(start, problem)
-    start_node = Node(start)
+    start_node = Node(
+        state=start,
+        cost=0.0,
+        depth=0,
+        nid=0,
+    )
     tree.created(start_node, h0)
     frontier = [(g0 + h0, counter, start_node)]
-    best_g = {problem.state_key(start): 0.0}
-
+    best_g = {start: 0.0}
+    
     while frontier:
         metrics.observe_frontier(len(frontier))
-        f, _, node = heapq.heappop(frontier)
-        key = problem.state_key(node.state)
-        if node.cost > best_g.get(key, float("inf")):
-            continue  # đã có đường tốt hơn tới state này
+        _, _, node = heapq.heappop(frontier)
+
+        if node.cost > best_g.get(node.state, float("inf")):
+            continue
 
         metrics.expand()
-        metrics.observe_depth(node.cost)
+        metrics.observe_depth(node.depth)
         visited_order.append(node.state.pacman)
         tree.expanded(node, heuristic(node.state, problem))
 
@@ -109,11 +129,18 @@ def astar(problem: SearchProblem, heuristic: Heuristic = null_heuristic, record_
         for action in problem.actions(node.state):
             nxt = problem.result(node.state, action)
             new_g = node.cost + problem.step_cost(node.state, action, nxt)
-            k = problem.state_key(nxt)
-            if new_g < best_g.get(k, float("inf")):
-                best_g[k] = new_g
+
+            if new_g < best_g.get(nxt, float("inf")):
+                best_g[nxt] = new_g
                 counter += 1
-                child = Node(nxt, node, action, new_g, counter)
+                child = Node(
+                    state=nxt,
+                    parent=node,
+                    action=action,
+                    cost=node.cost + problem.step_cost(node.state, action, nxt),
+                    depth=node.depth + 1,
+                    nid=counter,
+                )
                 h = heuristic(nxt, problem)
                 tree.created(child, h)
                 heapq.heappush(frontier, (new_g + h, counter, child))

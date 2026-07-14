@@ -3,26 +3,21 @@ from pathlib import Path
 import pytest
 
 from backend.game.layout import load_layout, parse_layout
+from backend.game.state import GameMap, Maze
 
 
 MAPS_DIR = Path(__file__).parents[1] / "backend" / "maps"
 
 
-def test_tiny_is_an_open_closed_demo_map():
-    text = (MAPS_DIR / "tiny.txt").read_text(encoding="utf-8")
-    lines = text.splitlines()
+def test_layout_returns_game_map_with_static_maze():
+    game_map = load_layout("tiny")
 
-    # Bản đồ mở, ít tường: các dòng cùng width, viền kín, chỉ dùng ký tự hợp lệ.
-    assert len({len(line) for line in lines}) == 1
-    assert set(text) <= {"%", "P", ".", "o", " ", "\n"}
-    assert text.count("P") == 1
-
-    state = load_layout("tiny")
-    assert state.width > 0 and state.height > 0
-    # Food thưa: có food nhưng không phải ô nào cũng có.
-    assert state.food
-    interior = (state.width - 2) * (state.height - 2)
-    assert len(state.food) < interior
+    assert isinstance(game_map, GameMap)
+    assert isinstance(game_map.maze, Maze)
+    assert game_map.maze.width > 0
+    assert game_map.maze.height > 0
+    assert game_map.initial_food
+    assert game_map.pacman_start not in game_map.maze.walls
 
 
 @pytest.mark.parametrize(
@@ -32,6 +27,8 @@ def test_tiny_is_an_open_closed_demo_map():
         ("%%%%%\n%...%\n%%%%%", "đúng một ký tự 'P'"),
         ("%%%%%\n%PP.%\n%%%%%", "đúng một ký tự 'P'"),
         ("%%%%%\n%P..%\n%%.%%", "Viền ngoài phải kín"),
+        ("\n\n", "không được rỗng"),
+        ("%%%%%\n%PX.%\n%%%%%", "không hợp lệ"),
     ],
 )
 def test_parse_layout_rejects_invalid_layout(text, message):
@@ -41,5 +38,6 @@ def test_parse_layout_rejects_invalid_layout(text, message):
 
 @pytest.mark.parametrize("name", ["tiny", "small", "medium", "classic"])
 def test_bundled_maps_are_rectangular_and_parseable(name):
-    state = load_layout(name)
-    assert state.width > 0 and state.height > 0
+    game_map = load_layout(name)
+    assert game_map.maze.width > 0
+    assert game_map.maze.height > 0

@@ -20,10 +20,10 @@ MOVES = {
     Direction.RIGHT: (0, 1),
 }
 
-class Status(str, Enum):
-    PLAYING = "playing"
-    WIN = "win"
-
+# class Status(str, Enum):
+#     PLAYING = "playing"
+#     WIN = "win"
+    
 @dataclass(frozen=True)
 class Maze:
     walls: FrozenSet[Position]  # tập hợp các vị trí tường
@@ -39,6 +39,17 @@ class Maze:
         """Kiểm tra xem vị trí có phải là tường không."""
         return position in self.walls
     
+@dataclass(frozen=True)
+class GameMap:
+    """Dữ liệu map ban đầu đọc từ file.
+
+    Không phải state của thuật toán tìm kiếm.
+    Mỗi SearchProblem dùng dữ liệu này để tạo initial state phù hợp.
+    """
+    maze: Maze  # mê cung
+    pacman_start: Position  # vị trí ban đầu của Pacman
+    initial_food: FrozenSet[Position]  # tập hợp các vị trí thức ăn ban đầu
+
 #object không thể sửa sau khi tạo -> vì mỗi action tạo state mới
 @dataclass(frozen=True)
 class PathState:
@@ -46,7 +57,7 @@ class PathState:
     pacman: Position  # vị trí hiện tại của Pacman
 
 @dataclass(frozen=True)
-class EatAllDotsState:
+class EatAllFoodState:
     """State Eat-all-dots: vị trí Pac-man và các vị trí thức ăn còn lại."""
     pacman: Position
     food: FrozenSet[Position]  # tập hợp các vị trí còn lại của thức ăn

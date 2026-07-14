@@ -1,13 +1,9 @@
 """Luật di chuyển Pac-man cho các bài toán tìm kiếm tĩnh."""
 from __future__ import annotations
 
-from .state import Direction, GameMap, MOVES, Maze, Position
+from .state import Direction, MOVES, Maze, Position
 
 STEP_COST = 1.0  # chi phí mỗi bước di chuyển
-
-def step_cost(self, _state, _action, _next) -> float:
-    """Chi phí mỗi bước di chuyển."""
-    return float(STEP_COST)
 
 def _next_position(pos: Position, action: Direction) -> Position:
     row_delta, col_delta  = MOVES[action] #cập nhật vector di chuyển theo hướng action

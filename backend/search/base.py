@@ -8,11 +8,10 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import List, Optional
 
-from ..game.state import Direction, Position
+from ..game.state import Direction, EatAllFoodState, PathState, Position
 from ..metrics.counters import SearchMetrics
 
 TREE_LIMIT = 250
-
 
 @dataclass
 class SearchResult:
@@ -44,10 +43,11 @@ class SearchResult:
 class Node:
     """Node trên cây tìm kiếm: lưu state, cha, action dẫn tới nó, và g(n)."""
 
-    state: object
-    parent: Optional["Node"] = None
-    action: Optional[Direction] = None
+    state: PathState | EatAllFoodState
+    parent: "Node | None" = None
+    action: Direction | None = None
     cost: float = 0.0  # g(n): chi phí tích lũy từ gốc
+    depth: int = 0
     nid: int = 0       # id chạy (để dựng cây tìm kiếm cho FE)
 
     def reconstruct(self):
@@ -95,6 +95,7 @@ class TreeRecorder:
             "g": node.cost,
             "h": h_val,
             "f": node.cost + h_val,
+            "depth": node.depth,
             "created_order": len(self.nodes),
             "expanded_order": None,
         }

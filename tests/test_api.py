@@ -39,7 +39,7 @@ def test_get_unknown_map_404():
     assert r.status_code == 404
 
 
-def test_solve_bfs_path_to_farthest():
+def test_solve_bfs_path_to_default_cell():
     r = client.post(
         "/solve",
         json={"map": "small", "algorithm": "bfs", "problem": "path_to_cell"},
@@ -128,7 +128,7 @@ def test_compare_returns_rows():
         assert "memory_kb" not in row["stats"]
 
 
-def test_solve_path_to_farthest_returns_tree():
+def test_solve_path_to_cell_returns_tree():
     r = client.post(
         "/solve",
         json={"map": "small", "algorithm": "astar", "problem": "path_to_cell"},
@@ -138,7 +138,7 @@ def test_solve_path_to_farthest_returns_tree():
     assert len(tree) >= 1
     assert tree[0]["parent"] is None
     for node in tree:
-        assert {"id", "parent", "pos", "food_left", "food", "power_pellets", "g", "h", "f"} <= set(node)
+        assert {"id", "parent", "pos", "food_left", "food", "power_pellets", "g", "h", "f", "depth"} <= set(node)
 
 
 def test_solve_eat_all_returns_capped_tree():
@@ -159,7 +159,7 @@ def test_solve_eat_all_returns_capped_tree():
         assert {"created_order", "expanded_order", "action"} <= set(node)
 
 
-def test_compare_path_to_farthest_has_tree_and_optimal():
+def test_compare_path_to_cell_has_tree_and_optimal():
     r = client.post(
         "/compare",
         json={

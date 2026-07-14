@@ -10,7 +10,6 @@ from collections import deque
 from typing import Optional
 
 from ..game.problem import SearchProblem
-from ..game.rules import is_goal_static  # noqa: F401 (tiện tham chiếu)
 from ..metrics.counters import SearchMetrics
 from .base import Node, SearchResult, TreeRecorder
 
@@ -19,6 +18,7 @@ def _success(node: Node, metrics: SearchMetrics, visited_order, tree: TreeRecord
     actions, path = node.reconstruct()
     metrics.path_length = len(actions)
     metrics.cost = node.cost
+    metrics.goal_depth = node.depth
     metrics.found = True
     metrics.stop()
     return SearchResult(True, actions, path, visited_order, tree.nodes, metrics, tree.truncated, tree.limit)
@@ -45,29 +45,35 @@ def bfs(problem: SearchProblem, record_tree: bool = False) -> SearchResult:
         return _success(start_node, metrics, visited_order, tree)
 
     frontier = deque([start_node])
-    explored = {problem.state_key(start)}
+    explored = {start}
 
     while frontier:
         metrics.observe_frontier(len(frontier))
         node = frontier.popleft()
         metrics.expand()
-        metrics.observe_depth(node.cost)
+        metrics.observe_depth(node.depth)
         visited_order.append(node.state.pacman)
         tree.expanded(node, 0.0)
 
         for action in problem.actions(node.state):
             nxt = problem.result(node.state, action)
-            key = problem.state_key(nxt)
-            if key in explored:
+            if nxt in explored:
                 continue
             nid += 1
-            child = Node(nxt, node, action, node.cost + problem.step_cost(node.state, action, nxt), nid)
+            child = Node(
+                state=nxt,
+                parent=node,
+                action=action,
+                cost=node.cost + problem.step_cost(node.state, action, nxt),
+                depth=node.depth + 1,
+                nid=nid,
+            )
             tree.created(child, 0.0)
             metrics.generate()
             if problem.is_goal(nxt):
                 tree.expanded(child, 0.0)
                 return _success(child, metrics, visited_order, tree)
-            explored.add(key)
+            explored.add(nxt)
             frontier.append(child)
 
     return _failure(metrics, visited_order, tree)
@@ -83,38 +89,44 @@ def dfs(problem: SearchProblem, depth_limit: Optional[int] = None, record_tree: 
     start_node = Node(start)
     tree.created(start_node, 0.0)
     frontier = [start_node]
-    frontier_keys = {problem.state_key(start)}
+    frontier_keys = {start}
     explored = set()
 
     while frontier:
         metrics.observe_frontier(len(frontier))
         node = frontier.pop()
-        key = problem.state_key(node.state)
-        frontier_keys.discard(key)
-        if key in explored:
+        if node.state in frontier_keys:
+            frontier_keys.discard(node.state)
+        if node.state in explored:
             continue
-        explored.add(key)
+        explored.add(node.state)
         metrics.expand()
-        metrics.observe_depth(node.cost)
+        metrics.observe_depth(node.depth)
         visited_order.append(node.state.pacman)
         tree.expanded(node, 0.0)
 
         if problem.is_goal(node.state):
             return _success(node, metrics, visited_order, tree)
 
-        if depth_limit is not None and node.cost >= depth_limit:
+        if depth_limit is not None and node.depth >= depth_limit:
             continue
 
         for action in problem.actions(node.state):
             nxt = problem.result(node.state, action)
-            k = problem.state_key(nxt)
-            if k in explored or k in frontier_keys:
+            if nxt in explored or nxt in frontier_keys:
                 continue
             nid += 1
-            child = Node(nxt, node, action, node.cost + problem.step_cost(node.state, action, nxt), nid)
+            child = Node(
+                state=nxt,
+                parent=node,
+                action=action,
+                cost=node.cost + problem.step_cost(node.state, action, nxt),
+                depth=node.depth + 1,
+                nid=nid,
+            )
             tree.created(child, 0.0)
             frontier.append(child)
-            frontier_keys.add(k)
+            frontier_keys.add(nxt)
             metrics.generate()
 
     return _failure(metrics, visited_order, tree)
@@ -131,17 +143,17 @@ def ucs(problem: SearchProblem, record_tree: bool = False) -> SearchResult:
     start_node = Node(start)
     tree.created(start_node, 0.0)
     frontier = [(0.0, counter, start_node)]
-    best_g = {problem.state_key(start): 0.0}
+    best_g = {start: 0.0}
 
     while frontier:
         metrics.observe_frontier(len(frontier))
         g, _, node = heapq.heappop(frontier)
-        key = problem.state_key(node.state)
-        if g > best_g.get(key, float("inf")):
-            continue  # bản cũ tốt hơn đã được xử lý
 
+        if g > best_g.get(node.state, float("inf")):
+            continue
+    
         metrics.expand()
-        metrics.observe_depth(node.cost)
+        metrics.observe_depth(node.depth)
         visited_order.append(node.state.pacman)
         tree.expanded(node, 0.0)
 
@@ -151,11 +163,17 @@ def ucs(problem: SearchProblem, record_tree: bool = False) -> SearchResult:
         for action in problem.actions(node.state):
             nxt = problem.result(node.state, action)
             new_g = g + problem.step_cost(node.state, action, nxt)
-            k = problem.state_key(nxt)
-            if new_g < best_g.get(k, float("inf")):
-                best_g[k] = new_g
+            if new_g < best_g.get(nxt, float("inf")):
+                best_g[nxt] = new_g
                 counter += 1
-                child = Node(nxt, node, action, new_g, counter)
+                child = Node(
+                    state=nxt,
+                    parent=node,
+                    action=action,
+                    cost=new_g,
+                    depth=node.depth + 1,
+                    nid=counter,
+                )
                 tree.created(child, 0.0)
                 heapq.heappush(frontier, (new_g, counter, child))
                 metrics.generate()

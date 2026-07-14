@@ -12,21 +12,23 @@ from __future__ import annotations
 from typing import Callable
 
 from ..game.problem import EatAllFoodProblem, PathToPointProblem, SearchProblem
-from ..game.state import GameState, Position
+from ..game.state import EatAllFoodState, PathState, Position
 
-Heuristic = Callable[[GameState, SearchProblem], float]
+SearchState = EatAllFoodState | PathState
+
+Heuristic = Callable[[SearchState, SearchProblem], float]
 
 
 def manhattan(a: Position, b: Position) -> int:
     return abs(a[0] - b[0]) + abs(a[1] - b[1])
 
 
-def null_heuristic(state: GameState, problem: SearchProblem) -> float:
+def null_heuristic(state: SearchState, problem: SearchProblem) -> float:
     """h = 0 -> A* suy biến thành UCS (tiện so sánh)."""
     return 0.0
 
 
-def goal_manhattan(state: GameState, problem: SearchProblem) -> float:
+def goal_manhattan(state: SearchState, problem: SearchProblem) -> float:
     """Khoảng cách Manhattan tới ô đích (chỉ dùng cho PathToPointProblem).
 
     Admissible vì mỗi bước đi chỉ giảm khoảng cách Manhattan tối đa 1.
@@ -36,7 +38,7 @@ def goal_manhattan(state: GameState, problem: SearchProblem) -> float:
     return 0.0
 
 
-def nearest_food_dist(state: GameState, problem: SearchProblem) -> float:
+def nearest_food_dist(state: SearchState, problem: SearchProblem) -> float:
     """Khoảng cách Manhattan tới food GẦN nhất.
 
     Dùng cho EatAllFoodProblem. ADMISSIBLE (để ăn hết food thì ít nhất phải đi tới
@@ -44,25 +46,29 @@ def nearest_food_dist(state: GameState, problem: SearchProblem) -> float:
     thấp hơn nhiều so với thực tế, nên A* với nó vẫn tối ưu nhưng expand nhiều;
     phù hợp làm heuristic của Greedy hoặc A* "nhanh".
     """
-    if not state.food:
+    if not isinstance(state, EatAllFoodState) or not state.food:
         return 0.0
-    pr, pc = state.pacman
-    return float(min(manhattan(state.pacman, f) for f in state.food))
+    return float(min(manhattan(state.pacman, food) for food in state.food))
 
 
-def farthest_food_dist(state: GameState, problem: SearchProblem) -> float:
+def farthest_food_dist(state: SearchState, problem: SearchProblem) -> float:
     """Khoảng cách tới food XA nhất.
 
     ADMISSIBLE cho bài toán ăn hết food: muốn ăn hết thì ít nhất phải đi tới được
     miếng xa nhất, nên chi phí thực >= khoảng cách tới miếng xa nhất.
     """
+    if not isinstance(state, EatAllFoodState) or not state.food:
+        return 0.0
+    
     if not state.food:
         return 0.0
     return float(max(manhattan(state.pacman, f) for f in state.food))
 
 
-def food_count(state: GameState, problem: SearchProblem) -> float:
+def food_count(state: SearchState, problem: SearchProblem) -> float:
     """Số food còn lại. Admissible (mỗi food cần >=1 bước để ăn)."""
+    if not isinstance(state, EatAllFoodState):
+        return 0.0
     return float(len(state.food))
 
 

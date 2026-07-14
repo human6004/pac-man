@@ -13,7 +13,7 @@ from __future__ import annotations
 import os
 from typing import List, Optional
 
-from .state import GameMap, Ghost, Position, Status
+from .state import GameMap, Position, Maze
 
 WALL = "%"
 FOOD = "."
@@ -100,7 +100,7 @@ def parse_layout(text: str) -> GameMap:
         raise ValueError("Layout phải có một Pac-man.")
 
     return GameMap(
-        maze=GameMap.Maze(
+        maze=Maze(
             walls=frozenset(walls),
             width=width,
             height=height,

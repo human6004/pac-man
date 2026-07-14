@@ -16,7 +16,8 @@ class SearchMetrics:
     cost: float = 0.0
     search_depth: int = 0
     found: bool = False
-
+    goal_depth: int = 0
+    
     _t0: float = field(default=0.0, repr=False)
 
     def start(self) -> "SearchMetrics":

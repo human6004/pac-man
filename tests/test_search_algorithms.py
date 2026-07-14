@@ -2,28 +2,30 @@ from collections import defaultdict
 
 from backend.game.layout import load_layout
 from backend.game.problem import EatAllFoodProblem, PathToPointProblem, farthest_food
-from backend.search.heuristics import get_heuristic
-from backend.search.registry import SEARCH_ALGOS, is_informed
+from backend.search.heuristics import farthest_food_dist, goal_manhattan
+from backend.search.informed import astar, greedy
+from backend.search.uninformed import bfs, dfs, ucs
 
 
-def run_static(problem, algo):
-    fn = SEARCH_ALGOS[algo]
-    if is_informed(algo):
-        return fn(problem, get_heuristic("manhattan"), record_tree=True)
-    return fn(problem, record_tree=True)
+def _eat_all_problem(name):
+    game_map = load_layout(name)
+    return EatAllFoodProblem(game_map.maze, game_map.pacman_start, game_map.initial_food)
 
 
-def test_path_to_farthest_does_not_expand_same_cell_twice():
-    start = load_layout("small")
-    problem = PathToPointProblem(start, farthest_food(start))
-
-    for algo in SEARCH_ALGOS:
-        result = run_static(problem, algo)
-        expanded = [tuple(pos) for pos in result.visited_order]
-        assert len(expanded) == len(set(expanded)), algo
+def _path_problem(name):
+    game_map = load_layout(name)
+    goal = farthest_food(game_map.initial_food, game_map.pacman_start)
+    return PathToPointProblem(game_map.maze, game_map.pacman_start, goal)
 
 
-def expanded_state_keys(result):
+def _run(problem, algorithm):
+    if algorithm in {"greedy", "astar"}:
+        heuristic = farthest_food_dist if isinstance(problem, EatAllFoodProblem) else goal_manhattan
+        return {"greedy": greedy, "astar": astar}[algorithm](problem, heuristic, record_tree=True)
+    return {"bfs": bfs, "dfs": dfs, "ucs": ucs}[algorithm](problem, record_tree=True)
+
+
+def _expanded_food_states(result):
     return [
         (tuple(node["pos"]), frozenset(map(tuple, node["food"])))
         for node in result.tree
@@ -31,19 +33,24 @@ def expanded_state_keys(result):
     ]
 
 
+def test_path_problem_does_not_expand_same_position_twice():
+    for algorithm in ("bfs", "dfs", "ucs", "greedy", "astar"):
+        result = _run(_path_problem("small"), algorithm)
+        positions = [tuple(position) for position in result.visited_order]
+        assert len(positions) == len(set(positions)), algorithm
+
+
 def test_eat_all_does_not_expand_same_complete_state_twice():
-    start = load_layout("tiny")
-
-    for algo in SEARCH_ALGOS:
-        keys = expanded_state_keys(run_static(EatAllFoodProblem(start), algo))
-        assert len(keys) == len(set(keys)), algo
+    for algorithm in ("bfs", "dfs", "ucs", "greedy", "astar"):
+        states = _expanded_food_states(_run(_eat_all_problem("tiny"), algorithm))
+        assert len(states) == len(set(states)), algorithm
 
 
-def test_eat_all_keeps_same_position_with_different_food_sets():
-    result = SEARCH_ALGOS["bfs"](EatAllFoodProblem(load_layout("tiny")), record_tree=True)
-    food_sets_by_position_and_count = defaultdict(set)
+def test_eat_all_can_expand_same_position_with_different_food_sets():
+    result = bfs(_eat_all_problem("tiny"), record_tree=True)
+    food_sets_by_position = defaultdict(set)
 
-    for position, food in expanded_state_keys(result):
-        food_sets_by_position_and_count[(position, len(food))].add(food)
+    for position, food in _expanded_food_states(result):
+        food_sets_by_position[position].add(food)
 
-    assert any(len(food_sets) > 1 for food_sets in food_sets_by_position_and_count.values())
+    assert any(len(food_sets) > 1 for food_sets in food_sets_by_position.values())
