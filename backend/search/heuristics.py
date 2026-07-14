@@ -60,8 +60,6 @@ def farthest_food_dist(state: SearchState, problem: SearchProblem) -> float:
     if not isinstance(state, EatAllFoodState) or not state.food:
         return 0.0
     
-    if not state.food:
-        return 0.0
     return float(max(manhattan(state.pacman, f) for f in state.food))
 
 

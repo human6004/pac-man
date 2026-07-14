@@ -1,7 +1,6 @@
 const LEGEND = [
   ["Pac-Man", "var(--color-pac)", true],
-  ["Food", "var(--color-pellet)", true],
-  ["Power pellet", "#FFF04D", true],
+  ["Food", "var(--color-amber)", true],
   ["Ghost", "var(--state-current)", false],
   ["Explored cell", "var(--color-g)", false],
   ["Path", "var(--color-pac)", false],

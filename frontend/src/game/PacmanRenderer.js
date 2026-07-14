@@ -9,8 +9,6 @@ const GHOST_COLORS = ["#FF0000", "#FFB8FF", "#00FFFF", "#FFB852"];
 const WALL_FILL = "#0a0f3a";
 const WALL_STROKE = "#2121DE";
 const FOOD_COLOR = "#FFB897";
-const PELLET_ON = "#FFF04D";
-const PELLET_OFF = "#9c8e2a";
 const PAC_COLOR = "#FFE600";
 const VISITED_RGB = "0, 255, 255"; // inky cyan for the "visited" layer
 const PATH_COLOR = "rgba(255, 230, 0, 0.85)";
@@ -31,7 +29,6 @@ export class PacmanRenderer {
     this.pacDir = "RIGHT";
     this.ghosts = [];
     this.food = null;
-    this.pellets = null;
 
     this.cell = 24;
     this.offsetX = 0;
@@ -39,8 +36,8 @@ export class PacmanRenderer {
     this._mouthPhase = 0;
     this.reducedMotion = false;
 
-    // Effects hook: called when Pac-man eats food/pellet (assigned externally).
-    this.onEat = null; // (centerX, centerY, isPellet) => void
+    // Effects hook: called when Pac-man eats food (assigned externally).
+    this.onEat = null; // (centerX, centerY) => void
   }
 
   _key(rc) {
@@ -75,7 +72,6 @@ export class PacmanRenderer {
       color: GHOST_COLORS[i % GHOST_COLORS.length],
     }));
     this.food = new Set(this.map.food.map((p) => this._key(p)));
-    this.pellets = new Set(this.map.power_pellets.map((p) => this._key(p)));
     this.draw();
   }
 
@@ -141,14 +137,13 @@ export class PacmanRenderer {
     if (animate) this._mouthPhase += 0.9;
   }
 
-  // Deletes food/pellet at cell `rc` (if any) and fires the eat effect.
+  // Deletes food at cell `rc` (if any) and fires the eat effect.
   _eatAt(rc, effect = true) {
     const k = this._key(rc);
     const ateFood = this.food.delete(k);
-    const atePellet = this.pellets.delete(k);
-    if (effect && this.onEat && (ateFood || atePellet)) {
+    if (effect && this.onEat && ateFood) {
       const [x, y] = this._px(rc);
-      this.onEat(x + this.cell / 2, y + this.cell / 2, atePellet);
+      this.onEat(x + this.cell / 2, y + this.cell / 2);
     }
   }
 
@@ -221,15 +216,6 @@ export class PacmanRenderer {
       const [x, y] = this._px([r, c]);
       ctx.beginPath();
       ctx.arc(x + cell / 2, y + cell / 2, Math.max(2, cell * 0.09), 0, Math.PI * 2);
-      ctx.fill();
-    }
-    const blink = this.reducedMotion || Math.floor(Date.now() / 350) % 2 === 0;
-    ctx.fillStyle = blink ? PELLET_ON : PELLET_OFF;
-    for (const k of this.pellets) {
-      const [r, c] = k.split(",").map(Number);
-      const [x, y] = this._px([r, c]);
-      ctx.beginPath();
-      ctx.arc(x + cell / 2, y + cell / 2, Math.max(4, cell * 0.22), 0, Math.PI * 2);
       ctx.fill();
     }
   }

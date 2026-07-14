@@ -43,7 +43,6 @@ def serialize_map(game_map: GameMap) -> Dict:
         "height": game_map.maze.height,
         "walls": [list(pos) for pos in sorted(game_map.maze.walls)],
         "food": [list(pos) for pos in sorted(game_map.initial_food)],
-        "power_pellets": [],
         "pacman_start": list(game_map.pacman_start),
         "ghosts_start": [],
     }

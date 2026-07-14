@@ -1,7 +1,15 @@
 // SearchTreePanel.jsx — SVG search tree with coordinate cards, synced step by step.
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { clampZoom, fitZoom, layoutTree, MAX_ZOOM, MIN_ZOOM, ZOOM_STEP, zoomedScroll } from "./treeViewport.js";
+import {
+  clampZoom,
+  fitZoom,
+  layoutTree,
+  MAX_ZOOM,
+  MIN_ZOOM,
+  ZOOM_STEP,
+  zoomedScroll,
+} from "./treeViewport.js";
 
 const NODE_W = 122;
 const NODE_H = 94;
@@ -39,7 +47,10 @@ function treeState(tree, step) {
       cls.set(n.id, "current");
     } else {
       const parent = byId.get(n.parent);
-      const parentExpanded = parent && parent.expanded_order != null && parent.expanded_order < safeStep;
+      const parentExpanded =
+        parent &&
+        parent.expanded_order != null &&
+        parent.expanded_order < safeStep;
       cls.set(n.id, n.parent == null || parentExpanded ? "open" : "hidden");
     }
   }
@@ -57,12 +68,18 @@ function NodeCard({ node, state, problem }) {
   const [r, c] = node.pos || ["?", "?"];
   const eatAll = problem === "eat_all";
   const foodLeft = node.food?.length ?? 0; // F = food remaining at this node
-  const foodSet = (node.food || []).map(([fr, fc]) => `(${fr},${fc})`).join(", ");
+  const foodSet = (node.food || [])
+    .map(([fr, fc]) => `(${fr},${fc})`)
+    .join(", ");
   const tooltip = eatAll
     ? `State ((${r},${c}), ${foodLeft})\nF is the food remaining: ${foodLeft}\n{${foodSet}}`
     : `State p=(${r},${c})`;
-  const label = state === "current" ? "CURRENT" : state === "open" ? "OPEN" : "CLOSED";
-  const visitLabel = state === "closed" && node.expanded_order != null ? `#${node.expanded_order}` : "";
+  const label =
+    state === "current" ? "CURRENT" : state === "open" ? "OPEN" : "CLOSED";
+  const visitLabel =
+    state === "closed" && node.expanded_order != null
+      ? `#${node.expanded_order}`
+      : "";
 
   return (
     <g
@@ -73,23 +90,75 @@ function NodeCard({ node, state, problem }) {
       aria-label={tooltip}
     >
       <title>{tooltip}</title>
-      <rect width={NODE_W} height={NODE_H} rx="6" fill="var(--tree-node)" stroke={border} strokeWidth={state === "current" ? 2.8 : 1.5} />
-      <rect x="0" y="0" width={NODE_W} height="22" rx="6" fill="var(--tree-node-head)" />
-      <text x="7" y="14" fontSize="11" fontWeight="800" fontFamily="var(--font-arcade)" fill={border}>
+      <rect
+        width={NODE_W}
+        height={NODE_H}
+        rx="6"
+        fill="var(--tree-node)"
+        stroke={border}
+        strokeWidth={state === "current" ? 2.8 : 1.5}
+      />
+      <rect
+        x="0"
+        y="0"
+        width={NODE_W}
+        height="22"
+        rx="6"
+        fill="var(--tree-node-head)"
+      />
+      <text
+        x="7"
+        y="14"
+        fontSize="11"
+        fontWeight="800"
+        fontFamily="var(--font-arcade)"
+        fill={border}
+      >
         {visitLabel}
       </text>
-      <text x={NODE_W - 7} y="14" textAnchor="end" fontSize="10" fontWeight="800" fontFamily="var(--font-ui)" fill="var(--text-primary)">
+      <text
+        x={NODE_W - 7}
+        y="14"
+        textAnchor="end"
+        fontSize="10"
+        fontWeight="800"
+        fontFamily="var(--font-ui)"
+        fill="var(--text-primary)"
+      >
         {label}
       </text>
-      <text x={NODE_W / 2} y={eatAll ? 46 : 48} textAnchor="middle" fontSize={eatAll ? 18 : 24} fontFamily="var(--font-term)" fill="var(--color-pac)">
+      <text
+        x={NODE_W / 2}
+        y={eatAll ? 46 : 48}
+        textAnchor="middle"
+        fontSize={eatAll ? 18 : 24}
+        fontFamily="var(--font-term)"
+        fill="var(--color-pac)"
+      >
         {eatAll ? `((${r},${c}), ${foodLeft})` : `(${r},${c})`}
       </text>
-      <text x={NODE_W / 2} y={eatAll ? 64 : 68} textAnchor="middle" fontSize="14" fontFamily="var(--font-term)" fill="var(--color-inky)">
+      <text
+        x={NODE_W / 2}
+        y={eatAll ? 64 : 68}
+        textAnchor="middle"
+        fontSize="14"
+        fontFamily="var(--font-term)"
+        fill="var(--color-inky)"
+      >
         {node.action || "START"}
       </text>
-      <text x={NODE_W / 2} y="90" textAnchor="middle" fontSize="13" fontFamily="var(--font-term)" fill="var(--text-primary)">
-        <tspan fill="var(--color-g)">g={fmt(node.g)}</tspan>{"  "}
-        <tspan fill="var(--color-h)">h={fmt(node.h)}</tspan>{"  "}
+      <text
+        x={NODE_W / 2}
+        y="90"
+        textAnchor="middle"
+        fontSize="13"
+        fontFamily="var(--font-term)"
+        fill="var(--text-primary)"
+      >
+        <tspan fill="var(--color-g)">g={fmt(node.g)}</tspan>
+        {"  "}
+        <tspan fill="var(--color-h)">h={fmt(node.h)}</tspan>
+        {"  "}
         <tspan fill="var(--color-f)">f={fmt(node.f)}</tspan>
       </text>
     </g>
@@ -103,7 +172,14 @@ function lastTreeStep(tree) {
   return steps.length ? Math.max(...steps) + 1 : 0;
 }
 
-function TreeSvg({ tree, step, problem, heightClass = "tree-viewport", smoothFocus = false, compact = false }) {
+function TreeSvg({
+  tree,
+  step,
+  problem,
+  heightClass = "tree-viewport",
+  smoothFocus = false,
+  compact = false,
+}) {
   const scrollerRef = useRef(null);
   const svgRef = useRef(null);
   const dragRef = useRef(null);
@@ -113,33 +189,56 @@ function TreeSvg({ tree, step, problem, heightClass = "tree-viewport", smoothFoc
   const [followCurrent, setFollowCurrent] = useState(true);
   const [zoom, setZoom] = useState(1);
   const { cls } = treeState(tree, step);
-  const laid = useMemo(() => layoutTree(tree, {
-    nodeWidth: NODE_W,
-    nodeHeight: NODE_H,
-    horizontalGap: H_GAP,
-    verticalGap: V_GAP,
-    padding: PAD,
-  }), [tree]);
-  const focusNode = laid?.all.find((n) => cls.get(n.id) === "current") || laid?.all[0];
+  const laid = useMemo(
+    () =>
+      layoutTree(tree, {
+        nodeWidth: NODE_W,
+        nodeHeight: NODE_H,
+        horizontalGap: H_GAP,
+        verticalGap: V_GAP,
+        padding: PAD,
+      }),
+    [tree],
+  );
+  const focusNode =
+    laid?.all.find((n) => cls.get(n.id) === "current") || laid?.all[0];
   const focusId = focusNode?.id;
   const focusX = focusNode?.x;
   const focusY = focusNode?.y;
 
   useEffect(() => {
     const scroller = scrollerRef.current;
-    if (!scroller || !followCurrent || dragRef.current || focusX == null || focusY == null) return;
+    if (
+      !scroller ||
+      !followCurrent ||
+      dragRef.current ||
+      focusX == null ||
+      focusY == null
+    )
+      return;
     if (skipFocusScrollRef.current) {
       skipFocusScrollRef.current = false;
       return;
     }
     scroller.scrollTo({
-      left: Math.max(0, focusX * zoom - scroller.clientWidth / 2 + (NODE_W * zoom) / 2),
-      top: Math.max(0, focusY * zoom - scroller.clientHeight / 2 + (NODE_H * zoom) / 2),
-      behavior: smoothFocus && !window.matchMedia?.("(prefers-reduced-motion: reduce)").matches ? "smooth" : "auto",
+      left: Math.max(
+        0,
+        focusX * zoom - scroller.clientWidth / 2 + (NODE_W * zoom) / 2,
+      ),
+      top: Math.max(
+        0,
+        focusY * zoom - scroller.clientHeight / 2 + (NODE_H * zoom) / 2,
+      ),
+      behavior:
+        smoothFocus &&
+        !window.matchMedia?.("(prefers-reduced-motion: reduce)").matches
+          ? "smooth"
+          : "auto",
     });
   }, [focusId, focusX, focusY, zoom, followCurrent, smoothFocus]);
 
-  if (!laid) return <p className="empty-state">Cannot build the search tree.</p>;
+  if (!laid)
+    return <p className="empty-state">Cannot build the search tree.</p>;
 
   const startDrag = (e) => {
     if (e.pointerType === "mouse" && e.button !== 0) return;
@@ -200,7 +299,12 @@ function TreeSvg({ tree, step, problem, heightClass = "tree-viewport", smoothFoc
       contentY = focusY + NODE_H / 2;
       anchorX = originX + contentX * currentZoom - scroller.scrollLeft;
       anchorY = originY + contentY * currentZoom - scroller.scrollTop;
-      if (anchorX < 0 || anchorX > scroller.clientWidth || anchorY < 0 || anchorY > scroller.clientHeight) {
+      if (
+        anchorX < 0 ||
+        anchorX > scroller.clientWidth ||
+        anchorY < 0 ||
+        anchorY > scroller.clientHeight
+      ) {
         anchorX = scroller.clientWidth / 2;
         anchorY = scroller.clientHeight / 2;
       }
@@ -220,10 +324,22 @@ function TreeSvg({ tree, step, problem, heightClass = "tree-viewport", smoothFoc
       if (!nextSvg || !nextScroller) return;
       const nextScrollerRect = nextScroller.getBoundingClientRect();
       const nextSvgRect = nextSvg.getBoundingClientRect();
-      const nextOriginX = nextSvgRect.left - nextScrollerRect.left + nextScroller.scrollLeft;
-      const nextOriginY = nextSvgRect.top - nextScrollerRect.top + nextScroller.scrollTop;
-      nextScroller.scrollLeft = zoomedScroll(contentX, nextOriginX, nextZoom, anchorX);
-      nextScroller.scrollTop = zoomedScroll(contentY, nextOriginY, nextZoom, anchorY);
+      const nextOriginX =
+        nextSvgRect.left - nextScrollerRect.left + nextScroller.scrollLeft;
+      const nextOriginY =
+        nextSvgRect.top - nextScrollerRect.top + nextScroller.scrollTop;
+      nextScroller.scrollLeft = zoomedScroll(
+        contentX,
+        nextOriginX,
+        nextZoom,
+        anchorX,
+      );
+      nextScroller.scrollTop = zoomedScroll(
+        contentY,
+        nextOriginY,
+        nextZoom,
+        anchorY,
+      );
     });
   };
 
@@ -237,7 +353,10 @@ function TreeSvg({ tree, step, problem, heightClass = "tree-viewport", smoothFoc
     const pointerX = e.clientX - rect.left;
     const pointerY = e.clientY - rect.top;
     const direction = e.deltaY > 0 ? -1 : 1;
-    zoomAround(zoomRef.current + direction * ZOOM_STEP, { x: pointerX, y: pointerY });
+    zoomAround(zoomRef.current + direction * ZOOM_STEP, {
+      x: pointerX,
+      y: pointerY,
+    });
   };
 
   const handleKeyDown = (e) => {
@@ -252,7 +371,7 @@ function TreeSvg({ tree, step, problem, heightClass = "tree-viewport", smoothFoc
       "+": () => zoomAround(zoomRef.current + ZOOM_STEP),
       "=": () => zoomAround(zoomRef.current + ZOOM_STEP),
       "-": () => zoomAround(zoomRef.current - ZOOM_STEP),
-      "0": () => zoomAround(1),
+      0: () => zoomAround(1),
     };
     if (!actions[e.key]) return;
     e.preventDefault();
@@ -260,40 +379,69 @@ function TreeSvg({ tree, step, problem, heightClass = "tree-viewport", smoothFoc
     actions[e.key]();
   };
 
-  const fit = () => zoomAround(fitZoom(
-    scrollerRef.current?.clientWidth || 0,
-    scrollerRef.current?.clientHeight || 0,
-    laid.width,
-    laid.height
-  ));
+  const fit = () =>
+    zoomAround(
+      fitZoom(
+        scrollerRef.current?.clientWidth || 0,
+        scrollerRef.current?.clientHeight || 0,
+        laid.width,
+        laid.height,
+      ),
+    );
 
   return (
     <>
-      {!compact && <div className="tree-toolbar" role="toolbar" aria-label="Search tree controls">
-        <button type="button" className="tool-btn" aria-label="Zoom out tree" disabled={zoom <= MIN_ZOOM} onClick={() => zoomAround(zoomRef.current - ZOOM_STEP)}>
-          −
-        </button>
-        <output className="tree-zoom" aria-live="polite">
-          {Math.round(zoom * 100)}%
-        </output>
-        <button type="button" className="tool-btn" aria-label="Zoom in tree" disabled={zoom >= MAX_ZOOM} onClick={() => zoomAround(zoomRef.current + ZOOM_STEP)}>
-          +
-        </button>
-        <button type="button" className="tool-btn tool-btn-text" onClick={fit}>
-          Fit
-        </button>
-        <button type="button" className="tool-btn tool-btn-text" onClick={() => zoomAround(1)}>
-          100%
-        </button>
-        <button
-          type="button"
-          className={`tool-btn tool-btn-text ${followCurrent ? "is-active" : ""}`}
-          aria-pressed={followCurrent}
-          onClick={() => setFollowCurrent(true)}
+      {!compact && (
+        <div
+          className="tree-toolbar"
+          role="toolbar"
+          aria-label="Search tree controls"
         >
-          Follow CURRENT
-        </button>
-      </div>}
+          <button
+            type="button"
+            className="tool-btn"
+            aria-label="Zoom out tree"
+            disabled={zoom <= MIN_ZOOM}
+            onClick={() => zoomAround(zoomRef.current - ZOOM_STEP)}
+          >
+            −
+          </button>
+          <output className="tree-zoom" aria-live="polite">
+            {Math.round(zoom * 100)}%
+          </output>
+          <button
+            type="button"
+            className="tool-btn"
+            aria-label="Zoom in tree"
+            disabled={zoom >= MAX_ZOOM}
+            onClick={() => zoomAround(zoomRef.current + ZOOM_STEP)}
+          >
+            +
+          </button>
+          <button
+            type="button"
+            className="tool-btn tool-btn-text"
+            onClick={fit}
+          >
+            Fit
+          </button>
+          <button
+            type="button"
+            className="tool-btn tool-btn-text"
+            onClick={() => zoomAround(1)}
+          >
+            100%
+          </button>
+          <button
+            type="button"
+            className={`tool-btn tool-btn-text ${followCurrent ? "is-active" : ""}`}
+            aria-pressed={followCurrent}
+            onClick={() => setFollowCurrent(true)}
+          >
+            Follow CURRENT
+          </button>
+        </div>
+      )}
       <div
         ref={scrollerRef}
         className={`${heightClass} tree-scroller select-none touch-none ${
@@ -314,33 +462,52 @@ function TreeSvg({ tree, step, problem, heightClass = "tree-viewport", smoothFoc
           width={laid.width * zoom}
           height={laid.height * zoom}
           viewBox={`0 0 ${laid.width} ${laid.height}`}
-          style={{ minWidth: laid.width * zoom, display: "block", margin: "0 auto" }}
+          style={{
+            minWidth: laid.width * zoom,
+            display: "block",
+            margin: "0 auto",
+          }}
         >
-          <title>Step-by-step search tree</title>
-          <desc>Nodes keep their position. OPEN is waiting, CURRENT is being expanded, CLOSED is done.</desc>
+          <title>search tree</title>
+          <desc>
+            Nodes keep their position. OPEN is waiting, CURRENT is being
+            expanded, CLOSED is done.
+          </desc>
           {laid.all.flatMap((n) =>
-            n.kids.filter((child) => cls.get(n.id) !== "hidden" && cls.get(child.id) !== "hidden").map((child) => (
-              <line
-                key={`${n.id}-${child.id}`}
-                x1={n.x + NODE_W / 2}
-                y1={n.y + NODE_H}
-                x2={child.x + NODE_W / 2}
-                y2={child.y}
-                stroke="var(--tree-edge)"
-                strokeWidth="1.5"
-              />
-            ))
+            n.kids
+              .filter(
+                (child) =>
+                  cls.get(n.id) !== "hidden" && cls.get(child.id) !== "hidden",
+              )
+              .map((child) => (
+                <line
+                  key={`${n.id}-${child.id}`}
+                  x1={n.x + NODE_W / 2}
+                  y1={n.y + NODE_H}
+                  x2={child.x + NODE_W / 2}
+                  y2={child.y}
+                  stroke="var(--tree-edge)"
+                  strokeWidth="1.5"
+                />
+              )),
           )}
-          {laid.all.filter((n) => cls.get(n.id) !== "hidden").map((n) => (
-            <NodeCard key={n.id} node={n} state={cls.get(n.id)} problem={problem} />
-          ))}
+          {laid.all
+            .filter((n) => cls.get(n.id) !== "hidden")
+            .map((n) => (
+              <NodeCard
+                key={n.id}
+                node={n}
+                state={cls.get(n.id)}
+                problem={problem}
+              />
+            ))}
         </svg>
       </div>
     </>
   );
 }
 
-function TreeCounters({ tree, step }) {
+function treeCounts(tree, step) {
   const { cls } = treeState(tree, step);
   let open = 0;
   let closed = 0;
@@ -348,43 +515,52 @@ function TreeCounters({ tree, step }) {
     if (state === "open") open++;
     if (state === "closed") closed++;
   }
-  return (
-    <div className="tree-counters">
-      <div>
-        <span>OPEN</span>
-        <strong>{open}</strong>
-      </div>
-      <div>
-        <span>CLOSED</span>
-        <strong>{closed}</strong>
-      </div>
-    </div>
-  );
+  return { open, closed };
 }
 
-export function SearchTreePanel({ tree, active, step, treeMeta, problem, smoothFocus = false, compact = false }) {
+export function SearchTreePanel({
+  tree,
+  active,
+  step,
+  treeMeta,
+  problem,
+  smoothFocus = false,
+  compact = false,
+}) {
+  const counts = treeCounts(tree || [], step);
   return (
-    <section className={`lab-panel tree-panel ${compact ? "is-compact" : ""}`} aria-labelledby="tree-title">
+    <section
+      className={`lab-panel tree-panel ${compact ? "is-compact" : ""}`}
+      aria-labelledby="tree-title"
+    >
       <div className="panel-heading">
         <div>
           <p className="section-kicker">Search space</p>
-          <h2 id="tree-title">Step-by-step search tree</h2>
+          <h2 id="tree-title">Search tree</h2>
         </div>
         {treeMeta?.truncated && (
-          <span className="status-note">
-            Limited to {treeMeta.limit} nodes
-          </span>
+          <span className="status-note">Limited to {treeMeta.limit} nodes</span>
         )}
       </div>
       {!active ? (
-        <p className="empty-state">The search tree is only available in static search mode.</p>
+        <p className="empty-state">
+          The search tree is only available in static search mode.
+        </p>
       ) : !tree || tree.length === 0 ? (
-        <p className="empty-state">Choose a configuration then press Start or Next step to build the tree.</p>
+        <p className="empty-state">
+          Choose a configuration then press Start or Next step to build the
+          tree.
+        </p>
       ) : (
         <>
-          <TreeCounters tree={tree} step={step} />
-          <TreeSvg tree={tree} step={step} problem={problem} smoothFocus={smoothFocus} compact={compact} />
-          {!compact && <TreeLegend problem={problem} />}
+          <TreeSvg
+            tree={tree}
+            step={step}
+            problem={problem}
+            smoothFocus={smoothFocus}
+            compact={compact}
+          />
+          {!compact && <TreeLegend problem={problem} counts={counts} />}
         </>
       )}
     </section>
@@ -395,31 +571,50 @@ export function SearchTreePanel({ tree, active, step, treeMeta, problem, smoothF
 function LegendItem({ color, children }) {
   return (
     <span className="inline-flex items-center gap-1.5">
-      <i className="inline-block w-2.5 h-2.5 rounded-sm" style={{ background: color }} />
+      <i
+        className="inline-block w-2.5 h-2.5 rounded-sm"
+        style={{ background: color }}
+      />
       {children}
     </span>
   );
 }
 
-function TreeLegend({ problem }) {
+function TreeLegend({ problem, counts }) {
   return (
     <div className="tree-legend">
-      <div>
-        <LegendItem color="var(--state-open)">OPEN: waiting</LegendItem>
-        <LegendItem color="var(--state-current)">CURRENT: expanding</LegendItem>
-        <LegendItem color="var(--state-closed)">CLOSED: done</LegendItem>
+      <div className="tree-legend-text">
+        <div>
+          <LegendItem color="var(--state-open)">OPEN: waiting</LegendItem>
+          <LegendItem color="var(--state-current)">CURRENT: expanding</LegendItem>
+          <LegendItem color="var(--state-closed)">CLOSED: done</LegendItem>
+        </div>
+        <div>
+          <span style={{ color: "var(--color-g)" }}>g = cost so far</span>
+          <span style={{ color: "var(--color-h)" }}>h = estimated cost</span>
+          <span style={{ color: "var(--color-f)" }}>f = g + h</span>
+          {problem === "eat_all" && (
+            <span>F = food remaining; focus a node to see full detail</span>
+          )}
+        </div>
       </div>
-      <div>
-        <span style={{ color: "var(--color-g)" }}>g = cost so far</span>
-        <span style={{ color: "var(--color-h)" }}>h = estimated cost</span>
-        <span style={{ color: "var(--color-f)" }}>f = g + h</span>
-        {problem === "eat_all" && <span>F = food remaining; focus a node to see full detail</span>}
+      <div className="tree-legend-counts">
+        <span>OPEN: <strong>{counts.open}</strong></span>
+        <span>CLOSED: <strong>{counts.closed}</strong></span>
       </div>
     </div>
   );
 }
 
-export function SearchTreePreview({ tree, title, subtitle, treeMeta, problem, step, compact = false }) {
+export function SearchTreePreview({
+  tree,
+  title,
+  subtitle,
+  treeMeta,
+  problem,
+  step,
+  compact = false,
+}) {
   if (!tree || tree.length === 0) {
     return (
       <section className="lab-panel tree-preview">
@@ -431,22 +626,29 @@ export function SearchTreePreview({ tree, title, subtitle, treeMeta, problem, st
   }
 
   const displayStep = step == null ? lastTreeStep(tree) : step;
+  const counts = treeCounts(tree, displayStep);
 
   return (
-    <section className={`lab-panel tree-preview ${compact ? "is-compact" : ""}`}>
+    <section
+      className={`lab-panel tree-preview ${compact ? "is-compact" : ""}`}
+    >
       <div className="panel-heading compact-heading">
         <div>
           <h3>{title}</h3>
           {subtitle && <p>{subtitle}</p>}
         </div>
         {treeMeta?.truncated && (
-          <span className="status-note">
-            {treeMeta.limit} node
-          </span>
+          <span className="status-note">{treeMeta.limit} node</span>
         )}
       </div>
-      {!compact && <TreeCounters tree={tree} step={displayStep} />}
-      <TreeSvg tree={tree} step={displayStep} problem={problem} heightClass={compact ? "tree-viewport-mini" : "tree-viewport-compare"} compact={compact} />
+      <TreeSvg
+        tree={tree}
+        step={displayStep}
+        problem={problem}
+        heightClass={compact ? "tree-viewport-mini" : "tree-viewport-compare"}
+        compact={compact}
+      />
+      {!compact && <TreeLegend problem={problem} counts={counts} />}
     </section>
   );
 }

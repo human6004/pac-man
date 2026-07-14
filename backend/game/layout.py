@@ -1,11 +1,9 @@
-"""Đọc bản đồ mê cung từ file text và dựng GameState ban đầu.
+"""Đọc bản đồ mê cung từ file text và dựng GameMap ban đầu.
 
 Quy ước ký tự trong file layout:
     '%'  -> tường (wall)
     '.'  -> thức ăn (food)
-    'o'  -> power pellet
     'P'  -> vị trí xuất phát Pac-man
-    'G'  -> vị trí xuất phát ma (ghost)
     ' '  -> ô trống
 """
 from __future__ import annotations
@@ -17,16 +15,11 @@ from .state import GameMap, Position, Maze
 
 WALL = "%"
 FOOD = "."
-# PELLET = "o"
 PACMAN = "P"
-# GHOST = "G"
 EMPTY = " "
-
 VALID_SYMBOLS = {WALL, FOOD, PACMAN, EMPTY}
-
 BACKEND_DIR = os.path.dirname(os.path.dirname(__file__))
 MAPS_DIR = os.path.join(BACKEND_DIR, "maps")
-
 def parse_layout(text: str) -> GameMap:
     """Phân tích chuỗi layout thành GameMap ban đầu."""
     lines = text.splitlines()
@@ -65,9 +58,8 @@ def parse_layout(text: str) -> GameMap:
     top_or_bottom_open = any(
         char != WALL
         for line in (lines[0], lines[-1])
-        for char in line 
+        for char in line
     )
-
     left_or_right_open = any(
         line[0] != WALL or line[-1] != WALL
         for line in lines
@@ -78,9 +70,7 @@ def parse_layout(text: str) -> GameMap:
 
     walls = set()
     food = set()
-    # pellets = set()
     pacman: Optional[Position] = None
-    # ghosts: List[Ghost] = []
 
     for r, line in enumerate(lines):
         for c, ch in enumerate(line):
@@ -89,12 +79,8 @@ def parse_layout(text: str) -> GameMap:
                 walls.add(pos)
             elif ch == FOOD:
                 food.add(pos)
-            # elif ch == PELLET:
-            #     pellets.add(pos)
             elif ch == PACMAN:
                 pacman = pos
-            # elif ch == GHOST:
-            #     ghosts.append(Ghost(pos=pos))
 
     if pacman is None:
         raise ValueError("Layout phải có một Pac-man.")

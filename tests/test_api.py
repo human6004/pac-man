@@ -138,7 +138,7 @@ def test_solve_path_to_cell_returns_tree():
     assert len(tree) >= 1
     assert tree[0]["parent"] is None
     for node in tree:
-        assert {"id", "parent", "pos", "food_left", "food", "power_pellets", "g", "h", "f", "depth"} <= set(node)
+        assert {"id", "parent", "pos", "food_left", "food", "g", "h", "f", "depth"} <= set(node)
 
 
 def test_solve_eat_all_returns_capped_tree():

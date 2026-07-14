@@ -1,5 +1,5 @@
 from backend.game.layout import parse_layout
-from backend.game.problem import EatAllFoodProblem, PathToPointProblem, nearest_food
+from backend.game.problem import EatAllFoodProblem, PathToPointProblem
 from backend.search.heuristics import farthest_food_dist, goal_manhattan, null_heuristic
 from backend.search.informed import astar, greedy
 from backend.search.uninformed import bfs, dfs, ucs
@@ -68,10 +68,9 @@ def test_astar_with_null_heuristic_matches_ucs_cost():
     assert astar(_eat_all_problem(), null_heuristic).metrics.cost == ucs(_eat_all_problem()).metrics.cost
 
 
-def test_greedy_finds_path_to_nearest_food():
+def test_greedy_finds_path_to_food():
     game_map = parse_layout(SMALL)
-    goal = nearest_food(game_map.initial_food, game_map.pacman_start)
-    problem = PathToPointProblem(game_map.maze, game_map.pacman_start, goal)
+    problem = PathToPointProblem(game_map.maze, game_map.pacman_start, (1, 2))
 
     assert greedy(problem, goal_manhattan).found
 

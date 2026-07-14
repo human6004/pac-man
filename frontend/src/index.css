@@ -34,7 +34,6 @@
   --color-inky: #006a73;
   --color-inky-ink: #ffffff;
   --color-clyde: #9c4e00;
-  --color-pellet: #a9552d;
   --color-amber: #7a5b00;
   --color-amber-dim: #596174;
   --color-g: #006a73;
@@ -70,7 +69,6 @@
   --color-inky: #00e5e5;
   --color-inky-ink: #061111;
   --color-clyde: #ffb852;
-  --color-pellet: #ffb897;
   --color-amber: #ffb852;
   --color-amber-dim: #9c6f14;
   --color-g: #00e5e5;
@@ -327,16 +325,22 @@ button:disabled, select:disabled, input:disabled { cursor: not-allowed; opacity:
   grid-template-columns: minmax(0, 2fr) minmax(0, 3fr);
   gap: 16px;
   align-items: stretch;
+  height: clamp(520px, 62dvh, 720px);
   min-width: 0;
+  min-height: 0;
 }
-.workspace-pane { min-width: 0; position: relative; }
+.workspace-pane { min-width: 0; min-height: 0; position: relative; }
 .map-pane {
   display: flex;
   flex-direction: column;
-  min-height: clamp(520px, 62dvh, 720px);
+  min-height: 0;
   padding: 16px;
 }
-.game-heading { margin-bottom: 10px; }
+.game-heading { position: relative; margin-bottom: 10px; }
+.game-heading .status-note { position: absolute; left: 50%; transform: translateX(-50%); }
+.map-target { display: grid; gap: 2px; margin-left: auto; text-align: right; }
+.map-target span { color: var(--color-inky); font-size: 12px; font-weight: 800; letter-spacing: 0.5px; text-transform: uppercase; }
+.map-target strong { color: var(--color-amber); font-family: var(--font-term); }
 .game-screen { flex: 1; display: grid; place-items: center; width: 100%; }
 
 .crt {
@@ -400,7 +404,8 @@ button:disabled, select:disabled, input:disabled { cursor: not-allowed; opacity:
   display: flex;
   flex-direction: column;
   height: 100%;
-  min-height: clamp(520px, 62dvh, 720px);
+  min-width: 0;
+  min-height: 0;
 }
 .tree-counters { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; margin-bottom: 10px; }
 .tree-counters > div {
@@ -431,8 +436,10 @@ button:disabled, select:disabled, input:disabled { cursor: not-allowed; opacity:
 .tree-zoom { min-width: 58px; text-align: center; font-family: var(--font-term); color: var(--text-primary); }
 .tree-scroller {
   min-height: 300px;
+  min-width: 0;
   flex: 1;
   overflow: auto;
+  overscroll-behavior: contain;
   border: 1px solid var(--border);
   border-radius: 6px;
   background: color-mix(in srgb, var(--page) 76%, var(--surface));
@@ -441,8 +448,27 @@ button:disabled, select:disabled, input:disabled { cursor: not-allowed; opacity:
 .tree-viewport { height: 100%; }
 .tree-viewport-compare { min-height: 0; height: auto; }
 .tree-viewport-mini { height: 120px; }
-.tree-legend { display: grid; gap: 6px; margin-top: 10px; color: var(--text-muted); font-family: var(--font-term); font-size: 12px; }
-.tree-legend > div { display: flex; flex-wrap: wrap; gap: 6px 16px; }
+.tree-legend {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px 16px;
+  margin-top: 10px;
+  color: var(--text-muted);
+  font-family: var(--font-term);
+  font-size: 12px;
+}
+.tree-legend-text { display: grid; gap: 6px; min-width: 0; }
+.tree-legend-text > div { display: flex; flex-wrap: wrap; gap: 6px 16px; }
+.tree-legend-counts {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 6px 12px;
+  color: var(--color-amber);
+  white-space: nowrap;
+}
+.tree-legend-counts strong { color: var(--color-amber); }
 .tree-legend i { border: 1px solid color-mix(in srgb, currentColor 30%, transparent); }
 
 .status-strip {
@@ -575,7 +601,7 @@ button:disabled, select:disabled, input:disabled { cursor: not-allowed; opacity:
 
 @container (max-width: 959px) {
   .pane-switch, .tree-pane-switch { display: inline-flex; justify-self: start; }
-  .run-workspace { grid-template-columns: minmax(0, 1fr); grid-template-rows: minmax(420px, auto) 144px; }
+  .run-workspace { grid-template-columns: minmax(0, 1fr); grid-template-rows: clamp(500px, 62dvh, 720px) 144px; height: auto; }
   .run-workspace .workspace-pane.is-active { order: 1; }
   .run-workspace .workspace-pane.is-preview { order: 2; height: 144px; overflow: hidden; cursor: pointer; }
   .run-workspace .workspace-pane.is-preview > * { pointer-events: none; }

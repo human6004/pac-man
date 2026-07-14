@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Api } from "./api/client";
 import { Cabinet } from "./components/Cabinet";
 import { CompareCharts } from "./components/CompareCharts";
@@ -73,6 +73,7 @@ export default function App() {
   const [soundOn, setSoundOn] = useState(true);
   const [poweron, setPoweron] = useState(true);
   const [mapError, setMapError] = useState(null);
+  const [rendererReady, setRendererReady] = useState(false);
   const [goalCursor, setGoalCursor] = useState(null);
   const [theme, setTheme] = useState(getInitialTheme);
 
@@ -87,6 +88,7 @@ export default function App() {
     syncMotion();
     motionQuery?.addEventListener?.("change", syncMotion);
     rendererRef.current = renderer;
+    setRendererReady(true);
 
     let frame;
     const loop = () => {
@@ -109,7 +111,7 @@ export default function App() {
 
   useEffect(() => {
     const renderer = rendererRef.current;
-    if (!renderer || meta.loading) return;
+    if (!rendererReady || !renderer || meta.loading) return;
     const controller = new AbortController();
     (async () => {
       try {
@@ -127,7 +129,7 @@ export default function App() {
     return () => controller.abort();
     // runner changes on every state update; map loading only follows these values.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [cfg.map, meta.loading]);
+  }, [cfg.map, meta.loading, rendererReady]);
 
   useEffect(() => {
     audio.setEnabled(soundOn);
@@ -143,25 +145,25 @@ export default function App() {
     }
   }, [cfg.problem, cfg.goal]);
 
-  const handleRun = useCallback(() => tab === "compare" ? runner.runCompareTree(cfg) : runner.runStatic(cfg), [runner, cfg, tab]);
-  const handleStep = useCallback(() => tab === "compare" ? runner.stepCompareTree(cfg, 1) : runner.stepStatic(cfg, 1), [runner, cfg, tab]);
-  const handleStepBack = useCallback(() => tab === "compare" ? runner.stepCompareTree(cfg, -1) : runner.stepStatic(cfg, -1), [runner, cfg, tab]);
-  const handleCompare = useCallback(() => runner.compare(cfg), [runner, cfg]);
+  const handleRun = () => tab === "compare" ? runner.runCompareTree(cfg) : runner.runStatic(cfg);
+  const handleStep = () => tab === "compare" ? runner.stepCompareTree(cfg, 1) : runner.stepStatic(cfg, 1);
+  const handleStepBack = () => tab === "compare" ? runner.stepCompareTree(cfg, -1) : runner.stepStatic(cfg, -1);
+  const handleCompare = () => runner.compare(cfg);
 
-  const commitGoal = useCallback((cell) => {
+  const commitGoal = (cell) => {
     if (!cell) return;
     rendererRef.current?.setGoal(cell);
     setGoalCursor(cell);
     runner.reset();
     setCfg((current) => ({ ...current, goal: cell }));
-  }, [runner]);
+  };
 
-  const handleCanvasClick = useCallback((event) => {
+  const handleCanvasClick = (event) => {
     const cell = rendererRef.current?.pixelToCell(event.clientX, event.clientY);
     commitGoal(cell);
-  }, [commitGoal]);
+  };
 
-  const handleCanvasKeyDown = useCallback((event) => {
+  const handleCanvasKeyDown = (event) => {
     if (cfg.problem !== "path_to_cell" || runner.busy) return;
     const renderer = rendererRef.current;
     if (!renderer) return;
@@ -185,7 +187,7 @@ export default function App() {
       runner.reset();
       setCfg((current) => ({ ...current, goal: null }));
     }
-  }, [cfg.problem, cfg.goal, goalCursor, runner, commitGoal]);
+  };
 
   const handleTabChange = (nextTab) => {
     if (runner.busy) runner.reset();
@@ -262,6 +264,10 @@ export default function App() {
                   <h2>Game map</h2>
                 </div>
                 {goalEnabled && <span className="status-note">Selecting target</span>}
+                <div className="map-target">
+                  <span>Target</span>
+                  <strong>{cfg.problem === "eat_all" ? "All food" : cfg.goal ? `(${cfg.goal[0]}, ${cfg.goal[1]})` : "Farthest cell"}</strong>
+                </div>   
               </div>
               <CRTScreen
                 ref={canvasRef}

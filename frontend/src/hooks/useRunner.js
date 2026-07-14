@@ -124,14 +124,13 @@ export function useRunner(rendererRef) {
     setPaused(false);
   }, []);
 
-  // Wire the food-eating effect hook into the renderer (called once when renderer is available).
+  // Wire the food-eating effect hook into the renderer.
   const wireRenderer = useCallback(() => {
     const r = rendererRef.current;
     if (!r) return;
-    r.onEat = (cx, cy, isPellet) => {
-      effects.spawnBurst(cx, cy, isPellet ? "#FFF04D" : "#FFE600", isPellet ? 14 : 8);
-      if (isPellet) audio.pellet();
-      else audio.eat();
+    r.onEat = (cx, cy) => {
+      effects.spawnBurst(cx, cy, "#FFE600", 8);
+      audio.eat();
     };
   }, [rendererRef]);
 
@@ -283,7 +282,7 @@ export function useRunner(rendererRef) {
       setStepState({ current: s, total, complete: s === total });
       setSearchStep(Math.min(s, treeNodes.length)); // tree only grows during the reveal phase
 
-      // Rebuild from scratch so we can step back (food/pellets reset to initial state).
+      // Rebuild from scratch so we can step back.
       r.reset();
 
       if (s <= treeNodes.length) {
@@ -302,12 +301,11 @@ export function useRunner(rendererRef) {
 
       // Phase 2 (single step): go straight to the goal. Draw the full route from
       // the start to the target and move Pac-man there at once, eating every
-      // food/pellet along the way.
+      // food along the way.
       r.visited = [];
       r.path = path.slice();
       for (let i = 1; i < path.length; i++) {
         r.food.delete(r._key(path[i]));
-        r.pellets.delete(r._key(path[i]));
       }
       const goal = path.at(-1);
       const dir = path.length > 1 ? r._dirOf(path.at(-2), goal) : "RIGHT";

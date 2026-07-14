@@ -11,23 +11,7 @@ from typing import Optional
 
 from ..game.problem import SearchProblem
 from ..metrics.counters import SearchMetrics
-from .base import Node, SearchResult, TreeRecorder
-
-
-def _success(node: Node, metrics: SearchMetrics, visited_order, tree: TreeRecorder) -> SearchResult:
-    actions, path = node.reconstruct()
-    metrics.path_length = len(actions)
-    metrics.cost = node.cost
-    metrics.goal_depth = node.depth
-    metrics.found = True
-    metrics.stop()
-    return SearchResult(True, actions, path, visited_order, tree.nodes, metrics, tree.truncated, tree.limit)
-
-
-def _failure(metrics: SearchMetrics, visited_order, tree: TreeRecorder) -> SearchResult:
-    metrics.found = False
-    metrics.stop()
-    return SearchResult(False, [], [], visited_order, tree.nodes, metrics, tree.truncated, tree.limit)
+from .base import Node, TreeRecorder, failure_result, success_result
 
 
 def bfs(problem: SearchProblem, record_tree: bool = False) -> SearchResult:
@@ -42,7 +26,7 @@ def bfs(problem: SearchProblem, record_tree: bool = False) -> SearchResult:
     tree.created(start_node, 0.0)
     if problem.is_goal(start):
         tree.expanded(start_node, 0.0)
-        return _success(start_node, metrics, visited_order, tree)
+        return success_result(start_node, metrics, visited_order, tree)
 
     frontier = deque([start_node])
     explored = {start}
@@ -72,11 +56,11 @@ def bfs(problem: SearchProblem, record_tree: bool = False) -> SearchResult:
             metrics.generate()
             if problem.is_goal(nxt):
                 tree.expanded(child, 0.0)
-                return _success(child, metrics, visited_order, tree)
+                return success_result(child, metrics, visited_order, tree)
             explored.add(nxt)
             frontier.append(child)
 
-    return _failure(metrics, visited_order, tree)
+    return failure_result(metrics, visited_order, tree)
 
 def dfs(problem: SearchProblem, depth_limit: Optional[int] = None, record_tree: bool = False) -> SearchResult:
     """Depth-First Search (dùng stack). Không tối ưu; có thể giới hạn độ sâu."""
@@ -106,7 +90,7 @@ def dfs(problem: SearchProblem, depth_limit: Optional[int] = None, record_tree: 
         tree.expanded(node, 0.0)
 
         if problem.is_goal(node.state):
-            return _success(node, metrics, visited_order, tree)
+            return success_result(node, metrics, visited_order, tree)
 
         if depth_limit is not None and node.depth >= depth_limit:
             continue
@@ -129,7 +113,7 @@ def dfs(problem: SearchProblem, depth_limit: Optional[int] = None, record_tree: 
             frontier_keys.add(nxt)
             metrics.generate()
 
-    return _failure(metrics, visited_order, tree)
+    return failure_result(metrics, visited_order, tree)
 
 
 def ucs(problem: SearchProblem, record_tree: bool = False) -> SearchResult:
@@ -158,7 +142,7 @@ def ucs(problem: SearchProblem, record_tree: bool = False) -> SearchResult:
         tree.expanded(node, 0.0)
 
         if problem.is_goal(node.state):
-            return _success(node, metrics, visited_order, tree)
+            return success_result(node, metrics, visited_order, tree)
 
         for action in problem.actions(node.state):
             nxt = problem.result(node.state, action)
@@ -178,4 +162,4 @@ def ucs(problem: SearchProblem, record_tree: bool = False) -> SearchResult:
                 heapq.heappush(frontier, (new_g, counter, child))
                 metrics.generate()
 
-    return _failure(metrics, visited_order, tree)
+    return failure_result(metrics, visited_order, tree)

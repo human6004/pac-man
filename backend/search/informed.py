@@ -10,24 +10,8 @@ import heapq
 
 from ..game.problem import SearchProblem
 from ..metrics.counters import SearchMetrics
-from .base import Node, SearchResult, TreeRecorder
+from .base import Node, TreeRecorder, failure_result, success_result
 from .heuristics import Heuristic, null_heuristic
-
-
-def _success(node: Node, metrics: SearchMetrics, visited_order, tree: TreeRecorder) -> SearchResult:
-    actions, path = node.reconstruct()
-    metrics.path_length = len(actions)
-    metrics.cost = node.cost
-    metrics.goal_depth = node.depth
-    metrics.found = True
-    metrics.stop()
-    return SearchResult(True, actions, path, visited_order, tree.nodes, metrics, tree.truncated, tree.limit)
-
-
-def _failure(metrics: SearchMetrics, visited_order, tree: TreeRecorder) -> SearchResult:
-    metrics.found = False
-    metrics.stop()
-    return SearchResult(False, [], [], visited_order, tree.nodes, metrics, tree.truncated, tree.limit)
 
 
 def greedy(problem: SearchProblem, heuristic: Heuristic = null_heuristic, record_tree: bool = False) -> SearchResult:
@@ -65,7 +49,7 @@ def greedy(problem: SearchProblem, heuristic: Heuristic = null_heuristic, record
         tree.expanded(node, heuristic(node.state, problem))
 
         if problem.is_goal(node.state):
-            return _success(node, metrics, visited_order, tree)
+            return success_result(node, metrics, visited_order, tree)
 
         for action in problem.actions(node.state):
             nxt = problem.result(node.state, action)
@@ -88,7 +72,7 @@ def greedy(problem: SearchProblem, heuristic: Heuristic = null_heuristic, record
             frontier_states.add(nxt)
             metrics.generate()
 
-    return _failure(metrics, visited_order, tree)
+    return failure_result(metrics, visited_order, tree)
 
 
 def astar(problem: SearchProblem, heuristic: Heuristic = null_heuristic, record_tree: bool = False) -> SearchResult:
@@ -124,7 +108,7 @@ def astar(problem: SearchProblem, heuristic: Heuristic = null_heuristic, record_
         tree.expanded(node, heuristic(node.state, problem))
 
         if problem.is_goal(node.state):
-            return _success(node, metrics, visited_order, tree)
+            return success_result(node, metrics, visited_order, tree)
 
         for action in problem.actions(node.state):
             nxt = problem.result(node.state, action)
@@ -146,4 +130,4 @@ def astar(problem: SearchProblem, heuristic: Heuristic = null_heuristic, record_
                 heapq.heappush(frontier, (new_g + h, counter, child))
                 metrics.generate()
 
-    return _failure(metrics, visited_order, tree)
+    return failure_result(metrics, visited_order, tree)

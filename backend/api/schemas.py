@@ -22,13 +22,3 @@ class CompareRequest(BaseModel):
     heuristic: str = "manhattan"
     problem: str = "eat_all"
     goal: Optional[List[int]] = None
-
-
-class StatsResponse(BaseModel):
-    nodes_expanded: int
-    nodes_generated: int
-    max_frontier: int
-    time_ms: float
-    path_length: int
-    cost: float
-    found: bool

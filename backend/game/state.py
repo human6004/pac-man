@@ -20,10 +20,6 @@ MOVES = {
     Direction.RIGHT: (0, 1),
 }
 
-# class Status(str, Enum):
-#     PLAYING = "playing"
-#     WIN = "win"
-    
 @dataclass(frozen=True)
 class Maze:
     walls: FrozenSet[Position]  # tập hợp các vị trí tường
@@ -60,6 +56,5 @@ class PathState:
 class EatAllFoodState:
     """State Eat-all-dots: vị trí Pac-man và các vị trí thức ăn còn lại."""
     pacman: Position
-    food: FrozenSet[Position]  # tập hợp các vị trí còn lại của thức ăn
-    
+    food: FrozenSet[Position]  # tập hợp các vị trí còn lại của thức ăn    
 

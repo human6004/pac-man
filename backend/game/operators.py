@@ -25,4 +25,4 @@ def move_pacman(maze: Maze, pos: Position, action: Direction) -> Position:
     if not maze.in_bounds(next_pos) or maze.is_wall(next_pos):
         raise ValueError(f"Action {action.value} không hợp lệ tại {pos}.")
     
-    return _next_position(pos, action)
+    return next_pos

@@ -253,11 +253,6 @@ export function ControlDeck({
             </select>
           </Field>
         )}
-        <Field label="Target" hint={cfg.problem === "path_to_cell" ? "Click the map or use arrow keys then Enter." : "The problem ends when all food is eaten."}>
-          <output className="field-output">
-            {cfg.problem === "eat_all" ? "All food" : cfg.goal ? `(${cfg.goal[0]}, ${cfg.goal[1]})` : "Default: farthest cell"}
-          </output>
-        </Field>
         <div className="field">
           <span id="run-mode-label">Run mode</span>
           <div className="segmented" role="group" aria-labelledby="run-mode-label">

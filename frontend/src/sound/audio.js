@@ -67,21 +67,6 @@ class ArcadeAudio {
     this._blip(hi ? 520 : 380, 0.06, "square", 0.12);
   }
 
-  move() {
-    const now = performance.now();
-    if (now - this._lastMove < 90) return;
-    this._lastMove = now;
-    this._blip(180, 0.04, "triangle", 0.07);
-  }
-
-  pellet() {
-    this._blip(660, 0.12, "square", 0.16);
-  }
-
-  eatGhost() {
-    this._sweep(300, 900, 0.22, "square", 0.18);
-  }
-
   coin() {
     this._blip(988, 0.08, "square", 0.18);
     setTimeout(() => this._blip(1319, 0.16, "square", 0.18), 80);
