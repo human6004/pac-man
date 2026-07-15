@@ -267,7 +267,7 @@ export default function App() {
                 <div className="map-target">
                   <span>Target</span>
                   <strong>{cfg.problem === "eat_all" ? "All food" : cfg.goal ? `(${cfg.goal[0]}, ${cfg.goal[1]})` : "Farthest cell"}</strong>
-                </div>   
+                </div>
               </div>
               <CRTScreen
                 ref={canvasRef}
@@ -307,16 +307,17 @@ export default function App() {
           <ControlDeck {...deckProps} tab="compare" />
           {runner.compareRows.length > 0 ? (
             <>
-              <ComparisonView rows={runner.compareRows} algoInfo={meta.algoInfo} />
-              <CompareTable rows={runner.compareRows} algoInfo={meta.algoInfo} />
-              <CompareCharts rows={runner.compareRows} algoInfo={meta.algoInfo} />
-              <ControlDeck {...deckProps} tab="compare" section="compare-playback" progress={runner.compareProgress} />
               <ComparisonTrees
                 rows={runner.compareRows}
                 algoInfo={meta.algoInfo}
                 problem={cfg.problem}
                 treeStep={runner.compareTreeStep}
               />
+              <ComparisonView rows={runner.compareRows} algoInfo={meta.algoInfo} />
+              <CompareTable rows={runner.compareRows} algoInfo={meta.algoInfo} />
+              <CompareCharts rows={runner.compareRows} algoInfo={meta.algoInfo} />
+              <ControlDeck {...deckProps} tab="compare" section="compare-playback" progress={runner.compareProgress} />
+
               <FghChart rows={runner.compareRows} algoInfo={meta.algoInfo} />
             </>
           ) : (

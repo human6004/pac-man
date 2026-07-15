@@ -19,14 +19,14 @@ export function ComparisonView({ rows, algoInfo }) {
 
   return (
     <section className="comparison-overview" aria-labelledby="comparison-overview-title">
-      <div className="comparison-lead lab-panel">
+      {/* <div className="comparison-lead lab-panel">
         <p className="section-kicker">Quick takeaway</p>
         <h2 id="comparison-overview-title">Key differences in this run</h2>
         <p>{insights.summary}</p>
         {insights.optimal.length > 0 && <p><strong>Guaranteed optimal:</strong> {insights.optimal.join(", ")}.</p>}
         {insights.notFound.length > 0 && <p className="warning-text"><strong>No path found:</strong> {insights.notFound.join(", ")}.</p>}
         {insights.errors.map((item) => <p className="error-text" key={item.algorithm}><strong>{item.algorithm}:</strong> {item.error}</p>)}
-      </div>
+      </div> */}
 
       <div className="insight-strip" aria-label="Highlight metrics">
         {METRIC_LABELS.map(([key, label, unit]) => {

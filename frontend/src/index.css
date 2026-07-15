@@ -246,8 +246,16 @@ button:disabled, select:disabled, input:disabled { cursor: not-allowed; opacity:
   letter-spacing: 0.2px;
   transition: transform 80ms ease, filter 140ms ease, border-color 140ms ease;
 }
-.button:not(:disabled):active, .text-toggle:not(:disabled):active, .top-tabs button:not(:disabled):active,
-.segmented button:not(:disabled):active, .tool-btn:not(:disabled):active { transform: translateY(1px); }
+.button:not(:disabled):active, 
+
+.text-toggle:not(:disabled):active, 
+
+.top-tabs button:not(:disabled):active,
+
+.segmented button:not(:disabled):active, 
+
+.tool-btn:not(:disabled):active { transform: translateY(1px); }
+
 .button:not(:disabled):hover { filter: brightness(1.1); }
 .button.primary { background: var(--accent); color: var(--accent-ink); box-shadow: 0 4px 0 color-mix(in srgb, var(--accent) 52%, #292300), 0 0 13px color-mix(in srgb, var(--accent) 36%, transparent); }
 .button.secondary { border-color: color-mix(in srgb, var(--color-inky) 58%, var(--border)); background: var(--color-inky); color: var(--color-inky-ink); box-shadow: 0 4px 0 color-mix(in srgb, var(--color-inky) 52%, #073f42); }
@@ -420,20 +428,65 @@ button:disabled, select:disabled, input:disabled { cursor: not-allowed; opacity:
 }
 .tree-counters span { color: var(--color-inky); font-size: 11px; font-weight: 800; letter-spacing: 0.5px; }
 .tree-counters strong { color: var(--color-amber); font-family: var(--font-term); font-size: 20px; }
-.tree-toolbar { display: flex; flex-wrap: wrap; justify-content: flex-end; align-items: center; gap: 6px; margin-bottom: 8px; }
-.tool-btn {
-  min-width: 44px;
-  min-height: 44px;
-  border: 1px solid var(--border);
-  border-radius: 6px;
-  background: var(--surface-muted);
-  color: var(--color-amber);
-  padding: 7px 10px;
-  font-weight: 750;
+
+.tree-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 8px;
 }
-.tool-btn-text { min-width: auto; }
+
+/* Các nút công cụ trong thanh điều khiển cây */
+.tree-toolbar .tool-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+
+  min-width: 30px;
+  height: 30px;
+  padding: 9px 14px;
+
+  border: 2px solid var(--border);
+  border-radius: 6px;
+  background-color: var(--surface-muted);
+  color: var(--color-amber);
+
+  font-size: 14px;
+  font-weight: 750;
+  line-height: 1;
+  cursor: pointer;
+}
+
+/* Chỉ áp dụng cho nút trừ và cộng */
+.tree-toolbar .tool-btn-zoom {
+  width: 30px;
+  min-width: 30px;
+  padding: 0;
+  font-size: 14px;
+}
+
+/* Các nút có nội dung dài như Fit, 100%, Follow CURRENT */
+.tree-toolbar .tool-btn-text {
+  width: auto;
+  min-width: max-content;
+}
+
+/* Hiệu ứng khi rê chuột */
+.tree-toolbar .tool-btn:hover {
+  border-color: var(--color-amber);
+}
+
+/* Hiệu ứng khi nhấn */
+.tree-toolbar .tool-btn:active {
+  transform: translateY(1px);
+}
+
 .tool-btn.is-active { border-color: var(--color-inky); color: var(--color-inky); box-shadow: inset 0 0 10px color-mix(in srgb, var(--color-inky) 18%, transparent); }
 .tree-zoom { min-width: 58px; text-align: center; font-family: var(--font-term); color: var(--text-primary); }
+
 .tree-scroller {
   min-height: 300px;
   min-width: 0;
@@ -445,30 +498,62 @@ button:disabled, select:disabled, input:disabled { cursor: not-allowed; opacity:
   background: color-mix(in srgb, var(--page) 76%, var(--surface));
   box-shadow: inset 0 0 22px color-mix(in srgb, var(--color-maze) 13%, transparent);
 }
+
+/* Cho vùng cây tự thu nhỏ để phần chú thích luôn nằm trong khung */
+.tree-panel > .tree-scroller {
+  min-height: 0;
+}
+
+.tree-panel > .tree-legend {
+  flex-shrink: 0;
+}
+
 .tree-viewport { height: 100%; }
 .tree-viewport-compare { min-height: 0; height: auto; }
 .tree-viewport-mini { height: 120px; }
+
 .tree-legend {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 10px 16px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 6px;
   margin-top: 10px;
   color: var(--text-muted);
   font-family: var(--font-term);
   font-size: 12px;
 }
-.tree-legend-text { display: grid; gap: 6px; min-width: 0; }
-.tree-legend-text > div { display: flex; flex-wrap: wrap; gap: 6px 16px; }
-.tree-legend-counts {
+
+.tree-legend-text {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+}
+
+.tree-legend-text > div {
   display: flex;
   flex-wrap: wrap;
-  justify-content: flex-end;
-  gap: 6px 12px;
+  gap: 6px 16px;
+}
+
+.tree-legend-food {
+  display: block;
+  width: 100%;
+  color: var(--text-muted);
+}
+
+.tree-legend-counts {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  flex-wrap: nowrap;
+  gap: 16px;
   color: var(--color-amber);
   white-space: nowrap;
 }
-.tree-legend-counts strong { color: var(--color-amber); }
+
+.tree-legend-counts strong {
+  color: var(--color-amber);
+}
+
 .tree-legend i { border: 1px solid color-mix(in srgb, currentColor 30%, transparent); }
 
 .status-strip {
@@ -600,8 +685,24 @@ button:disabled, select:disabled, input:disabled { cursor: not-allowed; opacity:
 .app-legend i { width: 11px; height: 11px; }
 
 @container (max-width: 959px) {
-  .pane-switch, .tree-pane-switch { display: inline-flex; justify-self: start; }
-  .run-workspace { grid-template-columns: minmax(0, 1fr); grid-template-rows: clamp(500px, 62dvh, 720px) 144px; height: auto; }
+  
+  .pane-switch, .tree-pane-switch { 
+    display: inline-flex; 
+    justify-self: start; 
+  }
+
+  .run-workspace {
+    display: grid;
+    grid-template-columns: minmax(0, 2fr) minmax(0, 3fr);
+    gap: 16px;
+    align-items: stretch;
+
+    /* Tăng chiều cao cho cả bản đồ và cây tìm kiếm */
+    height: clamp(680px, 76dvh, 900px);
+
+    min-width: 0;
+    min-height: 0;
+  }
   .run-workspace .workspace-pane.is-active { order: 1; }
   .run-workspace .workspace-pane.is-preview { order: 2; height: 144px; overflow: hidden; cursor: pointer; }
   .run-workspace .workspace-pane.is-preview > * { pointer-events: none; }
@@ -628,6 +729,123 @@ button:disabled, select:disabled, input:disabled { cursor: not-allowed; opacity:
   .comparison-tree-workspace .tree-slot.is-preview .tree-toolbar { display: none; }
   .comparison-tree-workspace .tree-slot.is-preview .tree-viewport-compare { height: 82px; min-height: 82px; }
   .comparison-tree-workspace .tree-slot.is-preview > * { pointer-events: none; }
+  /* =========================================================
+   Comparison g + h = f stacked chart
+   ========================================================= */
+
+  .comparison-fgh-panel {
+    min-width: 0;
+    overflow: hidden;
+  }
+
+  .comparison-fgh-legend {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px 22px;
+    margin-bottom: 12px;
+
+    color: var(--text-muted);
+    font-family: var(--font-term);
+    font-size: 13px;
+  }
+
+  .comparison-fgh-legend span {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+  }
+
+  .comparison-fgh-legend i {
+    display: inline-block;
+    width: 13px;
+    height: 13px;
+    border-radius: 3px;
+  }
+
+  .comparison-fgh-legend .legend-g {
+    background: var(--color-g);
+  }
+
+  .comparison-fgh-legend .legend-h {
+    background: var(--color-h);
+  }
+
+  .comparison-fgh-scroll {
+    width: 100%;
+    overflow-x: auto;
+    overflow-y: hidden;
+  }
+
+  .comparison-fgh-chart {
+    display: block;
+    width: 100%;
+    min-width: 760px;
+    height: auto;
+  }
+
+  .comparison-fgh-grid {
+    stroke: var(--chart-grid);
+    stroke-width: 1;
+    stroke-dasharray: 4 5;
+  }
+
+  .comparison-fgh-axis-label {
+    fill: var(--text-muted);
+    font-family: var(--font-term);
+    font-size: 11px;
+  }
+
+  .comparison-fgh-algorithm {
+    fill: var(--color-inky);
+    font-family: var(--font-term);
+    font-size: 14px;
+    font-weight: 800;
+  }
+
+  .comparison-fgh-node-count {
+    fill: var(--text-muted);
+    font-family: var(--font-term);
+    font-size: 10px;
+  }
+
+  .comparison-fgh-bar-background {
+    fill: color-mix(
+      in srgb,
+      var(--surface-muted) 85%,
+      var(--border)
+    );
+    stroke: var(--border);
+    stroke-width: 1;
+  }
+
+  .comparison-fgh-g {
+    fill: var(--color-g);
+  }
+
+  .comparison-fgh-h {
+    fill: var(--color-h);
+  }
+
+  .comparison-fgh-total {
+    fill: var(--color-f);
+    font-family: var(--font-term);
+    font-size: 13px;
+    font-weight: 800;
+  }
+
+  .comparison-fgh-values {
+    fill: var(--text-muted);
+    font-family: var(--font-term);
+    font-size: 10px;
+  }
+
+  .comparison-fgh-note {
+    margin: 8px 0 0;
+    color: var(--text-muted);
+    font-family: var(--font-term);
+    font-size: 12px;
+  }
 }
 
 @media (max-width: 900px) {
@@ -668,4 +886,113 @@ button:disabled, select:disabled, input:disabled { cursor: not-allowed; opacity:
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { scroll-behavior: auto !important; transition-duration: 0.01ms !important; animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; }
   .crt-sweep { display: none; }
+}
+
+
+/* Nút mở cây trong tab mới */
+.tree-open-fullscreen {
+  min-width: 48px;
+  padding-inline: 12px;
+  font-size: 22px;
+  line-height: 1;
+}
+
+/* Không cho trang toàn màn hình xuất hiện thanh cuộn ngoài */
+.tree-fullscreen-body {
+  overflow: hidden;
+}
+
+/* Trang cây trong tab mới */
+.tree-fullscreen-page {
+  width: 100vw;
+  height: 100dvh;
+  overflow: hidden;
+  padding: 12px;
+  background: var(--page);
+}
+
+/* Panel cây chiếm toàn bộ tab */
+.tree-fullscreen-page .tree-panel {
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+}
+
+/* Vùng cây sử dụng toàn bộ chiều cao còn lại */
+.tree-fullscreen-page .tree-scroller {
+  min-height: 0;
+  flex: 1;
+}
+
+/* Không để phần ghi chú bị co hoặc lọt khỏi khung */
+.tree-fullscreen-page .tree-legend {
+  flex-shrink: 0;
+}
+
+/* Thông báo khi không tìm thấy dữ liệu cây */
+.tree-fullscreen-error {
+  min-height: 100dvh;
+  display: grid;
+  place-content: center;
+  gap: 8px;
+  padding: 24px;
+  text-align: center;
+}
+
+.tree-fullscreen-page {
+  width: 100vw;
+  height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  overflow: hidden;
+  padding: 12px;
+  background: var(--page);
+}
+
+.tree-fullscreen-header {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  flex-shrink: 0;
+}
+
+.tree-back-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+
+  min-height: 42px;
+  padding: 8px 16px;
+
+  border: 2px solid var(--border);
+  border-radius: 6px;
+  background: var(--surface-muted);
+  color: var(--color-amber);
+
+  font-family: var(--font-term);
+  font-size: 16px;
+  font-weight: 750;
+  cursor: pointer;
+}
+
+.tree-back-button:hover {
+  border-color: var(--color-amber);
+}
+
+.tree-back-button:active {
+  transform: translateY(1px);
+}
+
+.tree-fullscreen-content {
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.tree-fullscreen-content .tree-panel {
+  width: 100%;
+  height: 100%;
+  min-height: 0;
 }

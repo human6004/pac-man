@@ -1,6 +1,12 @@
 // SearchTreePanel.jsx — SVG search tree with coordinate cards, synced step by step.
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import {
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import {
   clampZoom,
   fitZoom,
@@ -11,10 +17,12 @@ import {
   zoomedScroll,
 } from "./treeViewport.js";
 
+export const TREE_FULLSCREEN_STORAGE_KEY = "pacman-search-tree-fullscreen";
+
 const NODE_W = 122;
 const NODE_H = 94;
-const H_GAP = 30;
-const V_GAP = 50;
+const H_GAP = 22;
+const V_GAP = 40;
 const PAD = 16;
 const NODE_COLOR = {
   closed: "var(--state-closed)",
@@ -172,6 +180,26 @@ function lastTreeStep(tree) {
   return steps.length ? Math.max(...steps) + 1 : 0;
 }
 
+function scrollNodeToCenter(scroller, x, y, zoom, smoothFocus) {
+  if (!scroller || x == null || y == null) return;
+
+  scroller.scrollTo({
+    left: Math.max(
+      0,
+      x * zoom - scroller.clientWidth / 2 + (NODE_W * zoom) / 2,
+    ),
+    top: Math.max(
+      0,
+      y * zoom - scroller.clientHeight / 2 + (NODE_H * zoom) / 2,
+    ),
+    behavior:
+      smoothFocus &&
+        !window.matchMedia?.("(prefers-reduced-motion: reduce)").matches
+        ? "smooth"
+        : "auto",
+  });
+}
+
 function TreeSvg({
   tree,
   step,
@@ -179,27 +207,48 @@ function TreeSvg({
   heightClass = "tree-viewport",
   smoothFocus = false,
   compact = false,
+  autoFit = false,
+  onOpenFullscreen = null,
 }) {
   const scrollerRef = useRef(null);
   const svgRef = useRef(null);
   const dragRef = useRef(null);
   const skipFocusScrollRef = useRef(false);
   const zoomRef = useRef(1);
+  const initialAutoFitDoneRef = useRef(false);
+  /* Lưu vị trí hai thanh cuộn trước khi zoom bằng con lăn */
+  const wheelScrollRef = useRef(null);
   const [dragging, setDragging] = useState(false);
   const [followCurrent, setFollowCurrent] = useState(true);
   const [zoom, setZoom] = useState(1);
-  const { cls } = treeState(tree, step);
-  const laid = useMemo(
-    () =>
-      layoutTree(tree, {
-        nodeWidth: NODE_W,
-        nodeHeight: NODE_H,
-        horizontalGap: H_GAP,
-        verticalGap: V_GAP,
-        padding: PAD,
-      }),
-    [tree],
-  );
+
+  /*
+ * Chỉ dùng các node đã xuất hiện ở bước hiện tại để tính layout.
+ *
+ * Trước đây toàn bộ cây được dùng để tính tọa độ rồi mới ẩn node,
+ * khiến các node đang hiển thị vẫn cách nhau theo kích thước cây cuối.
+ */
+  const { cls, laid } = useMemo(() => {
+    const state = treeState(tree, step);
+
+    const visibleTree = (tree || []).filter(
+      (node) => state.cls.get(node.id) !== "hidden",
+    );
+
+    const currentLayout = layoutTree(visibleTree, {
+      nodeWidth: NODE_W,
+      nodeHeight: NODE_H,
+      horizontalGap: H_GAP,
+      verticalGap: V_GAP,
+      padding: PAD,
+    });
+
+    return {
+      cls: state.cls,
+      laid: currentLayout,
+    };
+  }, [tree, step]);
+
   const focusNode =
     laid?.all.find((n) => cls.get(n.id) === "current") || laid?.all[0];
   const focusId = focusNode?.id;
@@ -208,37 +257,137 @@ function TreeSvg({
 
   useEffect(() => {
     const scroller = scrollerRef.current;
-    if (
-      !scroller ||
-      !followCurrent ||
-      dragRef.current ||
-      focusX == null ||
-      focusY == null
-    )
-      return;
+
+    if (!followCurrent || dragRef.current) return;
+
     if (skipFocusScrollRef.current) {
       skipFocusScrollRef.current = false;
       return;
     }
-    scroller.scrollTo({
-      left: Math.max(
-        0,
-        focusX * zoom - scroller.clientWidth / 2 + (NODE_W * zoom) / 2,
-      ),
-      top: Math.max(
-        0,
-        focusY * zoom - scroller.clientHeight / 2 + (NODE_H * zoom) / 2,
-      ),
-      behavior:
-        smoothFocus &&
-        !window.matchMedia?.("(prefers-reduced-motion: reduce)").matches
-          ? "smooth"
-          : "auto",
-    });
+
+    scrollNodeToCenter(
+      scroller,
+      focusX,
+      focusY,
+      zoom,
+      smoothFocus,
+    );
   }, [focusId, focusX, focusY, zoom, followCurrent, smoothFocus]);
 
-  if (!laid)
+  useEffect(() => {
+    const scroller = scrollerRef.current;
+    if (!scroller) return undefined;
+
+    const handleNativeWheel = (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+
+      if (event.deltaY === 0) return;
+
+      const scroller = scrollerRef.current;
+      if (!scroller) return;
+
+      // Giữ nguyên vị trí quan sát hiện tại
+      wheelScrollRef.current = {
+        left: scroller.scrollLeft,
+        top: scroller.scrollTop,
+      };
+
+      const direction = event.deltaY < 0 ? 1 : -1;
+
+      const nextZoom = clampZoom(
+        zoomRef.current + direction * ZOOM_STEP,
+      );
+
+      if (nextZoom === zoomRef.current) return;
+
+      setFollowCurrent(false);
+      zoomRef.current = nextZoom;
+      setZoom(nextZoom);
+    };
+
+    scroller.addEventListener("wheel", handleNativeWheel, {
+      passive: false,
+    });
+
+    return () => {
+      scroller.removeEventListener("wheel", handleNativeWheel);
+    };
+  }, [laid]);
+
+
+  useLayoutEffect(() => {
+    const scroller = scrollerRef.current;
+    const saved = wheelScrollRef.current;
+
+    if (!scroller || !saved) return;
+
+    scroller.scrollLeft = saved.left;
+    scroller.scrollTop = saved.top;
+
+    wheelScrollRef.current = null;
+  }, [zoom]);
+
+  const handleFollowCurrent = () => {
+    skipFocusScrollRef.current = false;
+    setFollowCurrent(true);
+
+    scrollNodeToCenter(
+      scrollerRef.current,
+      focusX,
+      focusY,
+      zoomRef.current,
+      smoothFocus,
+    );
+  };
+
+  useEffect(() => {
+    if (
+      !autoFit ||
+      !laid ||
+      initialAutoFitDoneRef.current
+    ) {
+      return undefined;
+    }
+
+    const frame = requestAnimationFrame(() => {
+      const scroller = scrollerRef.current;
+      if (!scroller) return;
+
+      const nextZoom = fitZoom(
+        scroller.clientWidth,
+        scroller.clientHeight,
+        laid.width,
+        laid.height,
+      );
+
+      initialAutoFitDoneRef.current = true;
+
+      // Tab mới chỉ tự Fit một lần.
+      setFollowCurrent(false);
+      zoomRef.current = nextZoom;
+      setZoom(nextZoom);
+
+      requestAnimationFrame(() => {
+        const currentScroller = scrollerRef.current;
+        if (!currentScroller) return;
+
+        currentScroller.scrollTo({
+          left: 0,
+          top: 0,
+          behavior: "auto",
+        });
+      });
+    });
+
+    return () => {
+      cancelAnimationFrame(frame);
+    };
+  }, [autoFit, laid]);
+
+  if (!laid) {
     return <p className="empty-state">Cannot build the search tree.</p>;
+  }
 
   const startDrag = (e) => {
     if (e.pointerType === "mouse" && e.button !== 0) return;
@@ -343,22 +492,6 @@ function TreeSvg({
     });
   };
 
-  const handleWheel = (e) => {
-    const scroller = scrollerRef.current;
-    if (!scroller) return;
-    e.preventDefault();
-    setFollowCurrent(false);
-
-    const rect = scroller.getBoundingClientRect();
-    const pointerX = e.clientX - rect.left;
-    const pointerY = e.clientY - rect.top;
-    const direction = e.deltaY > 0 ? -1 : 1;
-    zoomAround(zoomRef.current + direction * ZOOM_STEP, {
-      x: pointerX,
-      y: pointerY,
-    });
-  };
-
   const handleKeyDown = (e) => {
     const scroller = scrollerRef.current;
     if (!scroller) return;
@@ -379,15 +512,45 @@ function TreeSvg({
     actions[e.key]();
   };
 
-  const fit = () =>
-    zoomAround(
+  const fit = () => {
+    const scroller = scrollerRef.current;
+    if (!scroller) return;
+
+    const nextZoom = Math.min(
+      1,
       fitZoom(
-        scrollerRef.current?.clientWidth || 0,
-        scrollerRef.current?.clientHeight || 0,
+        scroller.clientWidth,
+        scroller.clientHeight,
         laid.width,
         laid.height,
       ),
     );
+
+    // Fit thủ công không được Track current ghi đè.
+    setFollowCurrent(false);
+    skipFocusScrollRef.current = true;
+
+    zoomRef.current = nextZoom;
+    setZoom(nextZoom);
+
+    requestAnimationFrame(() => {
+      const currentScroller = scrollerRef.current;
+      if (!currentScroller) return;
+
+      currentScroller.scrollTo({
+        left: 0,
+        top: 0,
+        behavior: "auto",
+      });
+    });
+  };
+
+  const handleManualZoom = (nextZoom) => {
+    // Khi người dùng tự zoom thì tắt chế độ bám CURRENT.
+    setFollowCurrent(false);
+
+    zoomAround(nextZoom);
+  };
 
   return (
     <>
@@ -399,25 +562,39 @@ function TreeSvg({
         >
           <button
             type="button"
-            className="tool-btn"
+            className="tool-btn tool-btn-zoom"
             aria-label="Zoom out tree"
             disabled={zoom <= MIN_ZOOM}
-            onClick={() => zoomAround(zoomRef.current - ZOOM_STEP)}
+            onClick={() =>
+              handleManualZoom(
+                zoomRef.current - ZOOM_STEP,
+              )
+            }
           >
             −
           </button>
-          <output className="tree-zoom" aria-live="polite">
+
+          <output
+            className="tree-zoom"
+            aria-live="polite"
+          >
             {Math.round(zoom * 100)}%
           </output>
+
           <button
             type="button"
-            className="tool-btn"
+            className="tool-btn tool-btn-zoom"
             aria-label="Zoom in tree"
             disabled={zoom >= MAX_ZOOM}
-            onClick={() => zoomAround(zoomRef.current + ZOOM_STEP)}
+            onClick={() =>
+              handleManualZoom(
+                zoomRef.current + ZOOM_STEP,
+              )
+            }
           >
             +
           </button>
+
           <button
             type="button"
             className="tool-btn tool-btn-text"
@@ -425,28 +602,42 @@ function TreeSvg({
           >
             Fit
           </button>
+
           <button
             type="button"
             className="tool-btn tool-btn-text"
-            onClick={() => zoomAround(1)}
+            onClick={() => handleManualZoom(1)}
           >
             100%
           </button>
+
           <button
             type="button"
-            className={`tool-btn tool-btn-text ${followCurrent ? "is-active" : ""}`}
+            className={`tool-btn tool-btn-text ${followCurrent ? "is-active" : ""
+              }`}
             aria-pressed={followCurrent}
-            onClick={() => setFollowCurrent(true)}
+            onClick={handleFollowCurrent}
           >
-            Follow CURRENT
+            Track current
           </button>
+
+          {onOpenFullscreen && (
+            <button
+              type="button"
+              className="tool-btn tree-open-fullscreen"
+              aria-label="Open search tree in a new tab"
+              title="Open in new tab"
+              onClick={onOpenFullscreen}
+            >
+              ⛶
+            </button>
+          )}
         </div>
       )}
       <div
         ref={scrollerRef}
-        className={`${heightClass} tree-scroller select-none touch-none ${
-          dragging ? "cursor-grabbing" : "cursor-grab"
-        }`}
+        className={`${heightClass} tree-scroller select-none touch-none ${dragging ? "cursor-grabbing" : "cursor-grab"
+          }`}
         tabIndex={0}
         role="region"
         aria-label="Search tree. Use arrow keys to pan, plus or minus to zoom."
@@ -454,7 +645,6 @@ function TreeSvg({
         onPointerMove={drag}
         onPointerUp={stopDrag}
         onPointerCancel={stopDrag}
-        onWheel={handleWheel}
         onKeyDown={handleKeyDown}
       >
         <svg
@@ -473,34 +663,27 @@ function TreeSvg({
             Nodes keep their position. OPEN is waiting, CURRENT is being
             expanded, CLOSED is done.
           </desc>
-          {laid.all.flatMap((n) =>
-            n.kids
-              .filter(
-                (child) =>
-                  cls.get(n.id) !== "hidden" && cls.get(child.id) !== "hidden",
-              )
-              .map((child) => (
-                <line
-                  key={`${n.id}-${child.id}`}
-                  x1={n.x + NODE_W / 2}
-                  y1={n.y + NODE_H}
-                  x2={child.x + NODE_W / 2}
-                  y2={child.y}
-                  stroke="var(--tree-edge)"
-                  strokeWidth="1.5"
-                />
-              )),
-          )}
-          {laid.all
-            .filter((n) => cls.get(n.id) !== "hidden")
-            .map((n) => (
-              <NodeCard
-                key={n.id}
-                node={n}
-                state={cls.get(n.id)}
-                problem={problem}
+          {laid.all.flatMap((node) =>
+            node.kids.map((child) => (
+              <line
+                key={`${node.id}-${child.id}`}
+                x1={node.x + NODE_W / 2}
+                y1={node.y + NODE_H}
+                x2={child.x + NODE_W / 2}
+                y2={child.y}
+                stroke="var(--tree-edge)"
+                strokeWidth="1.5"
               />
-            ))}
+            )),
+          )}
+          {laid.all.map((node) => (
+            <NodeCard
+              key={node.id}
+              node={node}
+              state={cls.get(node.id)}
+              problem={problem}
+            />
+          ))}
         </svg>
       </div>
     </>
@@ -526,11 +709,46 @@ export function SearchTreePanel({
   problem,
   smoothFocus = false,
   compact = false,
+  fullscreen = false,
 }) {
   const counts = treeCounts(tree || [], step);
+  const openFullscreenTree = () => {
+    if (!tree || tree.length === 0) return;
+
+    try {
+      // Lưu ảnh chụp cây tại bước hiện tại.
+      window.localStorage.setItem(
+        TREE_FULLSCREEN_STORAGE_KEY,
+        JSON.stringify({
+          tree,
+          step,
+          treeMeta,
+          problem,
+        }),
+      );
+
+      const url = new URL(window.location.href);
+
+      // Xóa query hiện tại và chuyển sang chế độ xem cây.
+      url.search = "";
+      url.hash = "";
+      url.searchParams.set("treeFullscreen", "1");
+
+      window.open(
+        url.toString(),
+        "_blank",
+        "noopener,noreferrer",
+      );
+    } catch (error) {
+      console.error(
+        "Cannot open the full search tree view.",
+        error,
+      );
+    }
+  };
   return (
     <section
-      className={`lab-panel tree-panel ${compact ? "is-compact" : ""}`}
+      className={`lab-panel tree-panel ${compact ? "is-compact" : ""}${fullscreen ? "is-fullscreen" : ""}`}
       aria-labelledby="tree-title"
     >
       <div className="panel-heading">
@@ -559,6 +777,10 @@ export function SearchTreePanel({
             problem={problem}
             smoothFocus={smoothFocus}
             compact={compact}
+            autoFit={fullscreen}
+            onOpenFullscreen={
+              fullscreen ? null : openFullscreenTree
+            }
           />
           {!compact && <TreeLegend problem={problem} counts={counts} />}
         </>
@@ -586,21 +808,41 @@ function TreeLegend({ problem, counts }) {
       <div className="tree-legend-text">
         <div>
           <LegendItem color="var(--state-open)">OPEN: waiting</LegendItem>
-          <LegendItem color="var(--state-current)">CURRENT: expanding</LegendItem>
+          <LegendItem color="var(--state-current)">
+            CURRENT: expanding
+          </LegendItem>
           <LegendItem color="var(--state-closed)">CLOSED: done</LegendItem>
         </div>
+
         <div>
-          <span style={{ color: "var(--color-g)" }}>g = cost so far</span>
-          <span style={{ color: "var(--color-h)" }}>h = estimated cost</span>
-          <span style={{ color: "var(--color-f)" }}>f = g + h</span>
-          {problem === "eat_all" && (
-            <span>F = food remaining; focus a node to see full detail</span>
-          )}
+          <span style={{ color: "var(--color-g)" }}>
+            g = cost so far
+          </span>
+
+          <span style={{ color: "var(--color-h)" }}>
+            h = estimated cost
+          </span>
+
+          <span style={{ color: "var(--color-f)" }}>
+            f = g + h
+          </span>
         </div>
+
+        {problem === "eat_all" && (
+          <div className="tree-legend-food">
+            F = food remaining; focus a node to see full detail
+          </div>
+        )}
       </div>
+
       <div className="tree-legend-counts">
-        <span>OPEN: <strong>{counts.open}</strong></span>
-        <span>CLOSED: <strong>{counts.closed}</strong></span>
+        <span>
+          OPEN: <strong>{counts.open}</strong>
+        </span>
+
+        <span>
+          CLOSED: <strong>{counts.closed}</strong>
+        </span>
       </div>
     </div>
   );
