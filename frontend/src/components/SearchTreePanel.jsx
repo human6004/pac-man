@@ -73,6 +73,7 @@ function fmt(v) {
 function NodeCard({ node, state, problem }) {
   const border = NODE_COLOR[state] || "#8891b8";
   const opacity = NODE_OPACITY[state] ?? 1;
+  const borderWidth = state === "current" ? 2.8 : state === "open" ? 2.2 : 1.7;
   const [r, c] = node.pos || ["?", "?"];
   const eatAll = problem === "eat_all";
   const foodLeft = node.food?.length ?? 0; // F = food remaining at this node
@@ -101,17 +102,11 @@ function NodeCard({ node, state, problem }) {
       <rect
         width={NODE_W}
         height={NODE_H}
-        rx="6"
+        rx="8"
         fill="var(--tree-node)"
-        stroke={border}
-        strokeWidth={state === "current" ? 2.8 : 1.5}
       />
-      <rect
-        x="0"
-        y="0"
-        width={NODE_W}
-        height="22"
-        rx="6"
+      <path
+        d={`M 8 0 H ${NODE_W - 8} A 8 8 0 0 1 ${NODE_W} 8 V 22 H 0 V 8 A 8 8 0 0 1 8 0 Z`}
         fill="var(--tree-node-head)"
       />
       <text
@@ -169,6 +164,16 @@ function NodeCard({ node, state, problem }) {
         {"  "}
         <tspan fill="var(--color-f)">f={fmt(node.f)}</tspan>
       </text>
+      <rect
+        width={NODE_W}
+        height={NODE_H}
+        rx="8"
+        fill="none"
+        stroke={border}
+        strokeWidth={borderWidth}
+        vectorEffect="non-scaling-stroke"
+        shapeRendering="geometricPrecision"
+      />
     </g>
   );
 }
@@ -389,6 +394,8 @@ function TreeSvg({
     return <p className="empty-state">Cannot build the search tree.</p>;
   }
 
+  const counts = treeCounts(tree || [], step);
+
   const startDrag = (e) => {
     if (e.pointerType === "mouse" && e.button !== 0) return;
     const scroller = scrollerRef.current;
@@ -560,6 +567,10 @@ function TreeSvg({
           role="toolbar"
           aria-label="Search tree controls"
         >
+          <div className="tree-toolbar-counts" aria-label="Search tree node counts">
+            <span>OPEN: <strong>{counts.open}</strong></span>
+            <span>CLOSED: <strong>{counts.closed}</strong></span>
+          </div>
           <button
             type="button"
             className="tool-btn tool-btn-zoom"
@@ -701,6 +712,25 @@ function treeCounts(tree, step) {
   return { open, closed };
 }
 
+function openTreeFullscreen({ tree, step, treeMeta, problem }) {
+  if (!tree || tree.length === 0) return;
+
+  try {
+    window.localStorage.setItem(
+      TREE_FULLSCREEN_STORAGE_KEY,
+      JSON.stringify({ tree, step, treeMeta, problem }),
+    );
+
+    const url = new URL(window.location.href);
+    url.search = "";
+    url.hash = "";
+    url.searchParams.set("treeFullscreen", "1");
+    window.open(url.toString(), "_blank", "noopener,noreferrer");
+  } catch (error) {
+    console.error("Cannot open the full search tree view.", error);
+  }
+}
+
 export function SearchTreePanel({
   tree,
   active,
@@ -711,7 +741,6 @@ export function SearchTreePanel({
   compact = false,
   fullscreen = false,
 }) {
-  const counts = treeCounts(tree || [], step);
   const openFullscreenTree = () => {
     if (!tree || tree.length === 0) return;
 
@@ -782,7 +811,7 @@ export function SearchTreePanel({
               fullscreen ? null : openFullscreenTree
             }
           />
-          {!compact && <TreeLegend problem={problem} counts={counts} />}
+          {!compact && <TreeLegend problem={problem} />}
         </>
       )}
     </section>
@@ -802,7 +831,7 @@ function LegendItem({ color, children }) {
   );
 }
 
-function TreeLegend({ problem, counts }) {
+function TreeLegend({ problem }) {
   return (
     <div className="tree-legend">
       <div className="tree-legend-text">
@@ -834,16 +863,6 @@ function TreeLegend({ problem, counts }) {
           </div>
         )}
       </div>
-
-      <div className="tree-legend-counts">
-        <span>
-          OPEN: <strong>{counts.open}</strong>
-        </span>
-
-        <span>
-          CLOSED: <strong>{counts.closed}</strong>
-        </span>
-      </div>
     </div>
   );
 }
@@ -868,7 +887,12 @@ export function SearchTreePreview({
   }
 
   const displayStep = step == null ? lastTreeStep(tree) : step;
-  const counts = treeCounts(tree, displayStep);
+  const openFullscreenTree = () => openTreeFullscreen({
+    tree,
+    step: displayStep,
+    treeMeta,
+    problem,
+  });
 
   return (
     <section
@@ -889,8 +913,9 @@ export function SearchTreePreview({
         problem={problem}
         heightClass={compact ? "tree-viewport-mini" : "tree-viewport-compare"}
         compact={compact}
+        onOpenFullscreen={compact ? null : openFullscreenTree}
       />
-      {!compact && <TreeLegend problem={problem} counts={counts} />}
+      {!compact && <TreeLegend problem={problem} />}
     </section>
   );
 }

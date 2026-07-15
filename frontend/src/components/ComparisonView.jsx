@@ -60,21 +60,12 @@ export function ComparisonView({ rows, algoInfo }) {
 
 export function ComparisonTrees({ rows, algoInfo, problem, treeStep }) {
   const available = (rows || []).filter((row) => !row.error && row.tree?.length);
-  const [pair, setPair] = useState([]);
   const [activePane, setActivePane] = useState(0);
-  const availableKeys = available.map((row) => row.algorithm);
-  const normalized = [...new Set([...pair.filter((key) => availableKeys.includes(key)), ...availableKeys])].slice(0, 2);
-  const selectedRows = normalized.map((key) => available.find((row) => row.algorithm === key)).filter(Boolean);
+  const selectedRows = available;
+  const currentActivePane = Math.min(activePane, Math.max(0, selectedRows.length - 1));
   const nameOf = (key) => algoInfo?.[key]?.name || key;
 
   if (!available.length) return null;
-
-  const changePair = (index, value) => {
-    const next = [...normalized];
-    next[index] = value;
-    if (next[0] === next[1]) next[1 - index] = availableKeys.find((key) => key !== value);
-    setPair(next.filter(Boolean));
-  };
 
   const subtitle = (row) => {
     const stats = row.stats || {};
@@ -86,31 +77,15 @@ export function ComparisonTrees({ rows, algoInfo, problem, treeStep }) {
       <div className="section-heading-row">
         <div>
           <p className="section-kicker">Trace the cause</p>
-          <h2 id="comparison-trees-title">Two synchronized search trees</h2>
+          <h2 id="comparison-trees-title">Synchronized search trees</h2>
           <p>Same time step; each tree keeps its own pan and zoom.</p>
         </div>
-        {available.length > 2 && (
-          <div className="pair-selectors">
-            {[0, 1].map((index) => (
-              <label key={index}>
-                <span>Tree {index + 1}</span>
-                <select value={normalized[index] || ""} onChange={(event) => changePair(index, event.target.value)}>
-                  {available.map((row) => (
-                    <option key={row.algorithm} value={row.algorithm} disabled={normalized[1 - index] === row.algorithm}>
-                      {nameOf(row.algorithm)}
-                    </option>
-                  ))}
-                </select>
-              </label>
-            ))}
-          </div>
-        )}
       </div>
 
       {selectedRows.length > 1 && (
         <div className="segmented tree-pane-switch" role="group" aria-label="Active tree">
           {selectedRows.map((row, index) => (
-            <button key={row.algorithm} type="button" aria-pressed={activePane === index} onClick={() => setActivePane(index)}>
+            <button key={row.algorithm} type="button" aria-pressed={currentActivePane === index} onClick={() => setActivePane(index)}>
               {nameOf(row.algorithm)}
             </button>
           ))}
@@ -121,7 +96,7 @@ export function ComparisonTrees({ rows, algoInfo, problem, treeStep }) {
         {selectedRows.map((row, index) => (
           <div
             key={row.algorithm}
-            className={`tree-slot ${activePane === index ? "is-active" : "is-preview"}`}
+            className={`tree-slot ${currentActivePane === index ? "is-active" : "is-preview"}`}
             onClick={() => setActivePane(index)}
             onFocusCapture={() => setActivePane(index)}
           >
