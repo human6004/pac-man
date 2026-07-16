@@ -238,33 +238,7 @@ Một câu tóm gọn khi thuyết trình: *"Frontend hỏi, backend tính, fron
 
 ## 7. Cài đặt và chạy
 
-Yêu cầu: **Python 3.12** và **Node.js**.
-
-### Cài lần đầu
-
-```powershell
-py -3.12 -m pip install -r backend/requirements.txt
-cd frontend
-npm install
-```
-
-### Chạy (mở 2 cửa sổ terminal)
-
-Terminal 1 — backend:
-
-```powershell
-py -3.12 -m uvicorn backend.api.main:app --reload --port 8000
-```
-
-Terminal 2 — frontend:
-
-```powershell
-cd frontend
-npm run dev
-```
-
-Mở trình duyệt: <http://localhost:5173>
-Xem tài liệu API tự sinh (Swagger): <http://localhost:8000/docs>
+Xem hướng dẫn riêng tại **[SETUP.md](SETUP.md)**.
 
 ---
 
