@@ -16,3 +16,10 @@ export function buildFghSeries(rows, metric, nameOf) {
     })
     .filter((series) => series.values.length > 0);
 }
+
+export function nearestSeriesPoint(points, order) {
+  return (points || []).reduce(
+    (nearest, point) => !nearest || Math.abs(point.order - order) < Math.abs(nearest.order - order) ? point : nearest,
+    null,
+  );
+}

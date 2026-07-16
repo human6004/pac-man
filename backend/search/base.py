@@ -11,7 +11,7 @@ from typing import List, Optional
 from ..game.state import Direction, EatAllDotState, PathState, Position
 from ..metrics.counters import SearchMetrics
 
-TREE_LIMIT = 250
+TREE_LIMIT = 500
 
 @dataclass
 class SearchResult:

@@ -16,6 +16,7 @@ import {
   ZOOM_STEP,
   zoomedScroll,
 } from "./treeViewport.js";
+import { treeMetricsFor } from "./treeMetrics.js";
 
 export const TREE_FULLSCREEN_STORAGE_KEY = "pacman-search-tree-fullscreen";
 
@@ -36,6 +37,20 @@ const NODE_OPACITY = {
   open: 1,
 };
 
+const METRIC_COLOR = {
+  depth: "var(--text-primary)",
+  g: "var(--color-g)",
+  h: "var(--color-h)",
+  f: "var(--color-f)",
+};
+
+const METRIC_DESCRIPTION = {
+  depth: "depth = search depth",
+  g: "g = cost so far",
+  h: "h = estimated cost",
+  f: "f = g + h",
+};
+
 function treeState(tree, step) {
   const byId = new Map(tree.map((n) => [n.id, n]));
   const cls = new Map();
@@ -43,7 +58,7 @@ function treeState(tree, step) {
     .map((n) => n.expanded_order)
     .filter((n) => n != null);
   const maxStep = expandedOrders.length ? Math.max(...expandedOrders) + 1 : 0;
-  const safeStep = Math.max(0, Math.min(step || 0, maxStep));
+  const safeStep = Math.max(0, Math.min(step || 0, maxStep + 1));
 
   for (const n of tree) {
     const expanded = n.expanded_order;
@@ -70,7 +85,7 @@ function fmt(v) {
   return Number.isFinite(v) ? String(Math.round(v * 100) / 100) : "-";
 }
 
-function NodeCard({ node, state, problem }) {
+function NodeCard({ node, state, problem, algorithm }) {
   const border = NODE_COLOR[state] || "#8891b8";
   const opacity = NODE_OPACITY[state] ?? 1;
   const borderWidth = state === "current" ? 2.8 : state === "open" ? 2.2 : 1.7;
@@ -89,6 +104,7 @@ function NodeCard({ node, state, problem }) {
     state === "closed" && node.expanded_order != null
       ? `#${node.expanded_order}`
       : "";
+  const metrics = treeMetricsFor(algorithm);
 
   return (
     <g
@@ -158,11 +174,11 @@ function NodeCard({ node, state, problem }) {
         fontFamily="var(--font-term)"
         fill="var(--text-primary)"
       >
-        <tspan fill="var(--color-g)">g={fmt(node.g)}</tspan>
-        {"  "}
-        <tspan fill="var(--color-h)">h={fmt(node.h)}</tspan>
-        {"  "}
-        <tspan fill="var(--color-f)">f={fmt(node.f)}</tspan>
+        {metrics.map((metric, index) => (
+          <tspan key={metric} dx={index ? 8 : undefined} fill={METRIC_COLOR[metric]}>
+            {metric}={fmt(node[metric])}
+          </tspan>
+        ))}
       </text>
       <rect
         width={NODE_W}
@@ -209,6 +225,7 @@ function TreeSvg({
   tree,
   step,
   problem,
+  algorithm,
   heightClass = "tree-viewport",
   smoothFocus = false,
   compact = false,
@@ -693,6 +710,7 @@ function TreeSvg({
               node={node}
               state={cls.get(node.id)}
               problem={problem}
+              algorithm={algorithm}
             />
           ))}
         </svg>
@@ -712,13 +730,13 @@ function treeCounts(tree, step) {
   return { open, closed };
 }
 
-function openTreeFullscreen({ tree, step, treeMeta, problem }) {
+function openTreeFullscreen({ tree, step, treeMeta, problem, algorithm }) {
   if (!tree || tree.length === 0) return;
 
   try {
     window.localStorage.setItem(
       TREE_FULLSCREEN_STORAGE_KEY,
-      JSON.stringify({ tree, step, treeMeta, problem }),
+      JSON.stringify({ tree, step, treeMeta, problem, algorithm }),
     );
 
     const url = new URL(window.location.href);
@@ -737,6 +755,7 @@ export function SearchTreePanel({
   step,
   treeMeta,
   problem,
+  algorithm,
   smoothFocus = false,
   compact = false,
   fullscreen = false,
@@ -753,6 +772,7 @@ export function SearchTreePanel({
           step,
           treeMeta,
           problem,
+          algorithm,
         }),
       );
 
@@ -782,7 +802,6 @@ export function SearchTreePanel({
     >
       <div className="panel-heading">
         <div>
-          <p className="section-kicker">Search space</p>
           <h2 id="tree-title">Search tree</h2>
         </div>
         {treeMeta?.truncated && (
@@ -804,6 +823,7 @@ export function SearchTreePanel({
             tree={tree}
             step={step}
             problem={problem}
+            algorithm={algorithm}
             smoothFocus={smoothFocus}
             compact={compact}
             autoFit={fullscreen}
@@ -811,7 +831,7 @@ export function SearchTreePanel({
               fullscreen ? null : openFullscreenTree
             }
           />
-          {!compact && <TreeLegend problem={problem} />}
+          {!compact && <TreeLegend problem={problem} algorithm={algorithm} />}
         </>
       )}
     </section>
@@ -831,7 +851,8 @@ function LegendItem({ color, children }) {
   );
 }
 
-function TreeLegend({ problem }) {
+function TreeLegend({ problem, algorithm }) {
+  const metrics = treeMetricsFor(algorithm);
   return (
     <div className="tree-legend">
       <div className="tree-legend-text">
@@ -844,17 +865,11 @@ function TreeLegend({ problem }) {
         </div>
 
         <div>
-          <span style={{ color: "var(--color-g)" }}>
-            g = cost so far
-          </span>
-
-          <span style={{ color: "var(--color-h)" }}>
-            h = estimated cost
-          </span>
-
-          <span style={{ color: "var(--color-f)" }}>
-            f = g + h
-          </span>
+          {metrics.map((metric) => (
+            <span key={metric} style={{ color: METRIC_COLOR[metric] }}>
+              {METRIC_DESCRIPTION[metric]}
+            </span>
+          ))}
         </div>
 
         {problem === "eat_all" && (
@@ -873,6 +888,7 @@ export function SearchTreePreview({
   subtitle,
   treeMeta,
   problem,
+  algorithm,
   step,
   compact = false,
 }) {
@@ -892,6 +908,7 @@ export function SearchTreePreview({
     step: displayStep,
     treeMeta,
     problem,
+    algorithm,
   });
 
   return (
@@ -911,11 +928,12 @@ export function SearchTreePreview({
         tree={tree}
         step={displayStep}
         problem={problem}
+        algorithm={algorithm}
         heightClass={compact ? "tree-viewport-mini" : "tree-viewport-compare"}
         compact={compact}
         onOpenFullscreen={compact ? null : openFullscreenTree}
       />
-      {!compact && <TreeLegend problem={problem} />}
+      {!compact && <TreeLegend problem={problem} algorithm={algorithm} />}
     </section>
   );
 }

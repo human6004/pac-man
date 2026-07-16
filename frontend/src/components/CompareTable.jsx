@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { buildFghSeries } from "./fghSeries";
+import { buildFghSeries, nearestSeriesPoint } from "./fghSeries";
 
 const WIDTH = 920;
 const HEIGHT = 390;
@@ -30,6 +30,8 @@ function niceMax(value) {
 
 export function CompareTable({ rows, algoInfo }) {
   const [metric, setMetric] = useState("f");
+  const [hovered, setHovered] = useState(null);
+  const [pinned, setPinned] = useState(null);
   const metricInfo = METRICS.find((item) => item.key === metric) || METRICS[0];
   const nameOf = (key) => algoInfo?.[key]?.name || key;
   const series = buildFghSeries(rows, metric, nameOf)
@@ -59,6 +61,21 @@ export function CompareTable({ rows, algoInfo }) {
   const linePath = (points) => points
     .map((point, index) => `${index ? "L" : "M"}${getX(point.order)},${getY(point.value)}`)
     .join(" ");
+  const selectionAt = (event, item) => {
+    const svg = event.currentTarget.ownerSVGElement;
+    const rect = svg.getBoundingClientRect();
+    const x = (event.clientX - rect.left) * (WIDTH / rect.width);
+    const order = ((x - PAD.left) / plotWidth) * (maxOrder - 1);
+    const point = nearestSeriesPoint(item.points, order);
+    return point?.order ?? null;
+  };
+  const sameSelection = (left, right) => left === right;
+  const activeSelection = hovered ?? pinned;
+  const activePoints = activeSelection == null ? [] : series.flatMap((item, index) => {
+    const point = item.points.find((candidate) => candidate.order === activeSelection);
+    return point ? [{ ...point, name: item.name, style: ALGORITHM_STYLES[index % ALGORITHM_STYLES.length] }] : [];
+  });
+  const activePinned = sameSelection(activeSelection, pinned);
 
   return (
     <section className="lab-panel comparison-line-panel" aria-labelledby="comparison-line-title">
@@ -69,7 +86,11 @@ export function CompareTable({ rows, algoInfo }) {
         </div>
         <div className="segmented metric-tabs" aria-label="Metric to compare">
           {METRICS.map((item) => (
-            <button key={item.key} type="button" aria-pressed={metric === item.key} onClick={() => setMetric(item.key)}>
+            <button key={item.key} type="button" aria-pressed={metric === item.key} onClick={() => {
+              setMetric(item.key);
+              setHovered(null);
+              setPinned(null);
+            }}>
               {item.label.toUpperCase()}
             </button>
           ))}
@@ -124,11 +145,46 @@ export function CompareTable({ rows, algoInfo }) {
             return (
               <g key={item.algorithm}>
                 <path className="comparison-line-series" d={linePath(item.points)} stroke={style.color} strokeDasharray={style.dash} />
+                <path
+                  className="comparison-line-hit"
+                  d={linePath(item.points)}
+                  onPointerMove={(event) => setHovered(selectionAt(event, item))}
+                  onPointerLeave={() => setHovered(null)}
+                  onClick={(event) => {
+                    const next = selectionAt(event, item);
+                    setPinned((current) => sameSelection(current, next) ? null : next);
+                  }}
+                />
                 <circle className="comparison-line-point" cx={getX(last.order)} cy={getY(last.value)} r="5" fill={style.color} />
-                <text className="comparison-line-value" x={getX(last.order)} y={getY(last.value) - 10} textAnchor="middle" fill={style.color}>{formatValue(last.value)}</text>
               </g>
             );
           })}
+          {activePoints.length > 0 && (
+            <g className="comparison-line-selection" opacity={activePinned ? 1 : 0.5} pointerEvents="none">
+              <line
+                className="comparison-line-guide"
+                x1={getX(activeSelection)}
+                y1={PAD.top}
+                x2={getX(activeSelection)}
+                y2={PAD.top + plotHeight + 7}
+              />
+              {activePoints.map((point, index) => {
+                const overlaps = activePoints.slice(0, index)
+                  .filter((other) => Math.abs(getY(other.value) - getY(point.value)) < 14).length;
+                return (
+                  <g key={point.name}>
+                    <circle cx={getX(point.order)} cy={getY(point.value)} r="7" fill={point.style.color} />
+                    <text className="comparison-line-value" x={getX(point.order)} y={getY(point.value) - 12 - overlaps * 14} textAnchor="middle" fill={point.style.color}>
+                      {formatValue(point.value)}
+                    </text>
+                  </g>
+                );
+              })}
+              <text className="comparison-line-node" x={getX(activeSelection)} y={PAD.top + plotHeight + 48} textAnchor="middle">
+                Node #{activeSelection + 1}
+              </text>
+            </g>
+          )}
         </svg>
       </div>
     </section>

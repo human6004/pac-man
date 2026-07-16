@@ -1048,7 +1048,8 @@ button:disabled, select:disabled, input:disabled { cursor: not-allowed; opacity:
 .comparison-line-axis-label,
 .comparison-line-axis-title,
 .comparison-line-algorithm,
-.comparison-line-value {
+.comparison-line-value,
+.comparison-line-node {
   font-family: var(--font-term);
 }
 
@@ -1076,9 +1077,25 @@ button:disabled, select:disabled, input:disabled { cursor: not-allowed; opacity:
   stroke-linecap: round;
 }
 
+.comparison-line-hit {
+  fill: none;
+  stroke: transparent;
+  stroke-width: 18;
+  stroke-linecap: round;
+  cursor: crosshair;
+  pointer-events: stroke;
+}
+
 .comparison-line-point {
   stroke: var(--surface);
   stroke-width: 2;
+  pointer-events: none;
+}
+
+.comparison-line-guide {
+  stroke: var(--text-muted);
+  stroke-width: 1;
+  stroke-dasharray: 3 4;
 }
 
 
@@ -1086,6 +1103,16 @@ button:disabled, select:disabled, input:disabled { cursor: not-allowed; opacity:
   font-size: 11px;
   font-weight: 800;
 
+  paint-order: stroke;
+  stroke: var(--surface);
+  stroke-width: 3px;
+  stroke-linejoin: round;
+}
+
+.comparison-line-node {
+  fill: var(--text-primary);
+  font-size: 10px;
+  font-weight: 800;
   paint-order: stroke;
   stroke: var(--surface);
   stroke-width: 3px;

@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { buildFghSeries } from "./fghSeries.js";
+import { buildFghSeries, nearestSeriesPoint } from "./fghSeries.js";
 
 test("only take expanded nodes and sort by expanded_order", () => {
   const rows = [{
@@ -24,4 +24,10 @@ test("keep h=0 and allow series of different lengths", () => {
   ];
 
   assert.deepEqual(buildFghSeries(rows, "h", (key) => key).map((s) => s.values), [[0, 0], [4]]);
+});
+
+test("pick the nearest expanded node on a line", () => {
+  const points = [{ order: 0 }, { order: 4 }, { order: 9 }];
+  assert.equal(nearestSeriesPoint(points, 6).order, 4);
+  assert.equal(nearestSeriesPoint(points, 8).order, 9);
 });

@@ -280,7 +280,7 @@ export function useRunner(rendererRef) {
       const s = Math.max(0, Math.min(step, total));
       staticStepRef.current = s;
       setStepState({ current: s, total, complete: s === total });
-      setSearchStep(Math.min(s, treeNodes.length)); // tree only grows during the reveal phase
+      setSearchStep(Math.min(s, treeNodes.length + 1)); // final solution step has no CURRENT tree node
 
       // Rebuild from scratch so we can step back.
       r.reset();
@@ -291,7 +291,7 @@ export function useRunner(rendererRef) {
         r.visited = [];
         r.path = [];
         if (node) {
-          r.setSearchTimeline(treeNodes.slice(0, s));
+          r.setSearchNode(node);
         }
         r.draw();
         setStatus(s === 0 ? "Start" : `Traversing node ${s}/${treeNodes.length}`);

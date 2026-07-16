@@ -271,7 +271,6 @@ export function ControlDeck({
     <section className="lab-panel experiment-bar" aria-labelledby="experiment-title" aria-disabled={configLocked}>
       <div className="panel-heading compact-heading">
         <div>
-          <p className="section-kicker">Experiment setup</p>
           <h2 id="experiment-title">Search configuration</h2>
         </div>
         {configLocked && <span className="status-note">Reset to change configuration</span>}
