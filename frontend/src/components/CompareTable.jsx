@@ -1,11 +1,13 @@
 import { useState } from "react";
 import { buildFghSeries, nearestSeriesPoint } from "./fghSeries";
+import { treeMetricsFor } from "./treeMetrics";
 
 const WIDTH = 920;
 const HEIGHT = 390;
 const PAD = { top: 32, right: 34, bottom: 76, left: 68 };
 
 const METRICS = [
+  { key: "depth", label: "depth" },
   { key: "f", label: "f", color: "var(--color-f)" },
   { key: "g", label: "g", color: "var(--color-g)" },
   { key: "h", label: "h", color: "var(--color-h)" },
@@ -32,9 +34,17 @@ export function CompareTable({ rows, algoInfo }) {
   const [metric, setMetric] = useState("f");
   const [hovered, setHovered] = useState(null);
   const [pinned, setPinned] = useState(null);
-  const metricInfo = METRICS.find((item) => item.key === metric) || METRICS[0];
+  const availableMetrics = METRICS.filter((item) =>
+    rows.some((row) => !row.error && treeMetricsFor(row.algorithm).includes(item.key))
+  );
+  const metricInfo = availableMetrics.find((item) => item.key === metric) || availableMetrics[0];
+  if (!metricInfo) return null;
   const nameOf = (key) => algoInfo?.[key]?.name || key;
-  const series = buildFghSeries(rows, metric, nameOf)
+  const series = buildFghSeries(
+    rows.filter((row) => treeMetricsFor(row.algorithm).includes(metricInfo.key)),
+    metricInfo.key,
+    nameOf,
+  )
     .map((item) => ({
       ...item,
       points: item.orders.map((order, index) => ({ order, value: Number(item.values[index]) }))
@@ -81,12 +91,12 @@ export function CompareTable({ rows, algoInfo }) {
     <section className="lab-panel comparison-line-panel" aria-labelledby="comparison-line-title">
       <div className="panel-heading compact-heading">
         <div>
-          <p className="section-kicker">Heuristic metrics</p>
+          <p className="section-kicker">Search metrics</p>
           <h2 id="comparison-line-title">Compare algorithms by node expansion</h2>
         </div>
         <div className="segmented metric-tabs" aria-label="Metric to compare">
-          {METRICS.map((item) => (
-            <button key={item.key} type="button" aria-pressed={metric === item.key} onClick={() => {
+          {availableMetrics.map((item) => (
+            <button key={item.key} type="button" aria-pressed={metricInfo.key === item.key} onClick={() => {
               setMetric(item.key);
               setHovered(null);
               setPinned(null);
@@ -98,7 +108,7 @@ export function CompareTable({ rows, algoInfo }) {
       </div>
 
       <p className="metric-glossary">
-        Each line shows <strong>{metricInfo.label}</strong> at every expanded node. Lines use each algorithm's own expansion order and stop when its search finishes.
+        Each line shows <strong>{metricInfo.label}</strong> at every expanded node. A displayed metric is recorded for comparison; it is not necessarily the algorithm's priority.
       </p>
 
       <div className="comparison-line-legend" aria-label="Algorithm legend">
@@ -111,6 +121,7 @@ export function CompareTable({ rows, algoInfo }) {
             </span>
           );
         })}
+        <span><b className="comparison-goal-key" aria-hidden="true">◆</b> Goal node</span>
       </div>
 
       <div className="comparison-line-scroll">
@@ -142,6 +153,7 @@ export function CompareTable({ rows, algoInfo }) {
           {series.map((item, index) => {
             const style = ALGORITHM_STYLES[index % ALGORITHM_STYLES.length];
             const last = item.points.at(-1);
+            const goal = item.points.find((point) => point.order === item.goalOrder);
             return (
               <g key={item.algorithm}>
                 <path className="comparison-line-series" d={linePath(item.points)} stroke={style.color} strokeDasharray={style.dash} />
@@ -156,6 +168,17 @@ export function CompareTable({ rows, algoInfo }) {
                   }}
                 />
                 <circle className="comparison-line-point" cx={getX(last.order)} cy={getY(last.value)} r="5" fill={style.color} />
+                {goal && (
+                  <g className="comparison-goal-marker" pointerEvents="none">
+                    <title>{`${item.name} goal, Node #${goal.order + 1}`}</title>
+                    <polygon
+                      points={`${getX(goal.order)},${getY(goal.value) - 9} ${getX(goal.order) + 9},${getY(goal.value)} ${getX(goal.order)},${getY(goal.value) + 9} ${getX(goal.order) - 9},${getY(goal.value)}`}
+                      fill="var(--surface)"
+                      stroke={style.color}
+                    />
+                    <circle cx={getX(goal.order)} cy={getY(goal.value)} r="3" fill={style.color} />
+                  </g>
+                )}
               </g>
             );
           })}

@@ -10,6 +10,7 @@ export function buildFghSeries(rows, metric, nameOf) {
         name: nameOf(row.algorithm),
         orders: nodes.map((node) => node.expanded_order),
         values: nodes.map((node) => node[metric]),
+        goalOrder: nodes.find((node) => node.goal)?.expanded_order ?? null,
         truncated: !!row.tree_truncated,
         limit: row.tree_limit || 0,
       };

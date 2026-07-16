@@ -20,6 +20,11 @@ def test_layout_returns_game_map_with_static_maze():
     assert game_map.pacman_start not in game_map.maze.walls
 
 
+def test_demo_maps_keep_eat_all_search_small():
+    assert len(load_layout("tiny").initial_food) == 3
+    assert len(load_layout("small").initial_food) == 5
+
+
 @pytest.mark.parametrize(
     ("text", "message"),
     [

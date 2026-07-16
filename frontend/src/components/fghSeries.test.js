@@ -26,6 +26,15 @@ test("keep h=0 and allow series of different lengths", () => {
   assert.deepEqual(buildFghSeries(rows, "h", (key) => key).map((s) => s.values), [[0, 0], [4]]);
 });
 
+test("carry the real goal expansion order into the chart series", () => {
+  const rows = [{ algorithm: "astar", tree: [
+    { expanded_order: 0, f: 4 },
+    { expanded_order: 3, f: 4, goal: true },
+  ] }];
+
+  assert.equal(buildFghSeries(rows, "f", (key) => key)[0].goalOrder, 3);
+});
+
 test("pick the nearest expanded node on a line", () => {
   const points = [{ order: 0 }, { order: 4 }, { order: 9 }];
   assert.equal(nearestSeriesPoint(points, 6).order, 4);

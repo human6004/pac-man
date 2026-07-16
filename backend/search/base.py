@@ -111,9 +111,15 @@ class TreeRecorder:
             item["expanded_order"] = self._expanded
             self._expanded += 1
 
+    def mark_goal(self, node: "Node") -> None:
+        item = self._by_id.get(node.nid)
+        if item:
+            item["goal"] = True
+
 
 def success_result(node: Node, metrics: SearchMetrics, visited_order, tree: TreeRecorder) -> SearchResult:
     actions, path = node.reconstruct()
+    tree.mark_goal(node)
     metrics.path_length = len(actions)
     metrics.cost = node.cost
     metrics.goal_depth = node.depth
