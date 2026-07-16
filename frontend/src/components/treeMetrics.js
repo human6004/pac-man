@@ -1,8 +1,8 @@
 const METRICS_BY_ALGORITHM = {
-  bfs: ["depth"],
-  dfs: ["depth"],
+  bfs: ["depth", "g"],
+  dfs: ["depth", "g"],
   ucs: ["g"],
-  greedy: ["h"],
+  greedy: ["g", "h", "f"],
   astar: ["g", "h", "f"],
 };
 

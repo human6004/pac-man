@@ -54,3 +54,11 @@ def test_eat_all_can_expand_same_position_with_different_food_sets():
         food_sets_by_position[position].add(food)
 
     assert any(len(food_sets) > 1 for food_sets in food_sets_by_position.values())
+
+
+def test_success_marks_exactly_one_expanded_goal_node():
+    for algorithm in ("bfs", "dfs", "ucs", "greedy", "astar"):
+        result = _run(_path_problem("small"), algorithm)
+        goals = [node for node in result.tree if node.get("goal")]
+        assert len(goals) == 1, algorithm
+        assert goals[0]["expanded_order"] is not None
