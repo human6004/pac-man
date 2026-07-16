@@ -86,6 +86,7 @@ export function TreeFullscreenPage() {
           step={snapshot.step}
           treeMeta={snapshot.treeMeta}
           problem={snapshot.problem}
+          algorithm={snapshot.algorithm}
           fullscreen
         />
       </div>

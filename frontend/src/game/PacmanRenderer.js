@@ -130,16 +130,15 @@ export class PacmanRenderer {
     return [row, col];
   }
 
-  // Tree-traversal phase: Pac-man jumps between nodes following expanded_order
-  // (not the actual path). We do NOT restore food based on each node's food-state
-  // (that would make food "reappear" when expansion jumps to a shallower branch);
-  // instead we only DELETE food at the cell Pac-man currently stands on. This keeps
-  // food strictly decreasing: whichever cell is reached gets eaten for good.
-  setSearchNode(node, { animate = true, effect = true } = {}) {
+  // Tree traversal jumps between independent search states, not along one path.
+  // Restore the selected node's food set so switching branches stays truthful.
+  setSearchNode(node, { animate = true } = {}) {
     if (!node) return;
     this.setPacman(node.pos, node.action || this._dirOf(this.pacman, node.pos));
     this._prevPacman = node.pos.slice();
-    this._eatAt(node.pos, effect);
+    if (this.problem === "eat_all") {
+      this.food = new Set((node.food || []).map((position) => this._key(position)));
+    }
     if (animate) this._mouthPhase += 0.9;
   }
 
@@ -152,14 +151,6 @@ export class PacmanRenderer {
       const [x, y] = this._px(rc);
       this.onEat(x + this.cell / 2, y + this.cell / 2);
     }
-  }
-
-  // Rebuilds state at a timeline point: eats all cells passed through so far
-  // (keeps stepping forward/backward monotonic), only the last node fires the effect.
-  setSearchTimeline(nodes) {
-    if (!nodes || nodes.length === 0) return;
-    for (let i = 0; i < nodes.length - 1; i++) this._eatAt(nodes[i].pos, false);
-    this.setSearchNode(nodes.at(-1));
   }
 
   draw() {

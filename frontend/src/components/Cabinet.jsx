@@ -1,8 +1,8 @@
 const LEGEND = [
   ["Pac-Man", "var(--color-pac)", true],
-  ["Food", "var(--color-amber)", true],
-  ["Ghost", "var(--state-current)", false],
-  ["Explored cell", "var(--color-g)", false],
+  ["Food", "#ffb897", true],
+  ["Wall", "var(--color-maze)", false],
+  ["Target", "var(--color-g)", false],
   ["Path", "var(--color-pac)", false],
 ];
 

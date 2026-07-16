@@ -262,7 +262,6 @@ export default function App() {
             >
               <div className="panel-heading game-heading">
                 <div>
-                  <p className="section-kicker">Environment</p>
                   <h2>Game map</h2>
                 </div>
                 {goalEnabled && <span className="status-note">Selecting target</span>}
@@ -292,6 +291,7 @@ export default function App() {
                 step={runner.searchStep}
                 treeMeta={runner.treeMeta}
                 problem={cfg.problem}
+                algorithm={cfg.algorithm}
                 smoothFocus={cfg.runMode === "step"}
               />
             </div>
@@ -317,9 +317,9 @@ export default function App() {
               >
                 <ControlDeck {...deckProps} tab="compare" section="compare-playback" progress={runner.compareProgress} />
               </ComparisonTrees>
-              <ComparisonView rows={runner.compareRows} algoInfo={meta.algoInfo} />
               <CompareTable rows={runner.compareRows} algoInfo={meta.algoInfo} />
               <CompareCharts rows={runner.compareRows} algoInfo={meta.algoInfo} />
+              <ComparisonView rows={runner.compareRows} algoInfo={meta.algoInfo} />
 
             </>
           ) : (

@@ -3,8 +3,9 @@ import test from "node:test";
 
 import { PacmanRenderer } from "./PacmanRenderer.js";
 
-test("search timeline eats food at each visited cell, monotonically", () => {
+test("search step restores the exact food state of each branch", () => {
   const renderer = Object.assign(Object.create(PacmanRenderer.prototype), {
+    problem: "eat_all",
     map: {
       food: [[1, 1], [1, 2]],
     },
@@ -12,29 +13,20 @@ test("search timeline eats food at each visited cell, monotonically", () => {
     food: new Set(["1,1", "1,2"]),
     _mouthPhase: 0,
   });
-  const root = { pos: [0, 0], food: [[1, 1], [1, 2]] };
   const branchA = { pos: [0, 1], food: [[1, 2]] };
   const branchB = { pos: [1, 0], food: [[1, 1]] };
 
-  // Đặt food trùng ô Pac-man sẽ đứng, để kiểm tra "tới ô nào ăn ô đó".
-  renderer.food = new Set(["0,1", "1,0", "9,9"]);
-
-  // Duyệt tới branchA (ô [0,1]): ăn food tại đó, mất hẳn.
-  renderer.setSearchTimeline([root, branchA]);
+  renderer.setSearchNode(branchA);
   assert.deepEqual(renderer.pacman, branchA.pos);
-  assert.deepEqual([...renderer.food].sort(), ["1,0", "9,9"]);
+  assert.deepEqual([...renderer.food], ["1,2"]);
 
-  // Nhảy tiếp tới branchB (ô [1,0]): ăn thêm ô đó. Ô đã ăn KHÔNG hiện lại.
-  renderer.setSearchTimeline([root, branchA, branchB]);
+  renderer.setSearchNode(branchB);
   assert.deepEqual(renderer.pacman, branchB.pos);
-  assert.deepEqual([...renderer.food].sort(), ["9,9"]);
+  assert.deepEqual([...renderer.food], ["1,1"]);
 
-  // Lùi lại branchA: dựng lại từ timeline, ăn dồn [0,1] -> [0,1] vẫn mất,
-  // [1,0] chưa đi qua nên còn. Đơn điệu, không phụ thuộc food-state của node.
-  renderer.food = new Set(["0,1", "1,0", "9,9"]);
-  renderer.setSearchTimeline([root, branchA]);
+  renderer.setSearchNode(branchA);
   assert.deepEqual(renderer.pacman, branchA.pos);
-  assert.deepEqual([...renderer.food].sort(), ["1,0", "9,9"]);
+  assert.deepEqual([...renderer.food], ["1,2"]);
 });
 
 test("pathfinding hides food and never consumes it", () => {

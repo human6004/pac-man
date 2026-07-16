@@ -108,6 +108,7 @@ export function ComparisonTrees({ rows, algoInfo, problem, treeStep, children })
               subtitle={subtitle(row)}
               treeMeta={{ truncated: !!row.tree_truncated, limit: row.tree_limit || 0 }}
               problem={problem}
+              algorithm={row.algorithm}
               step={treeStep}
             />
           </div>
