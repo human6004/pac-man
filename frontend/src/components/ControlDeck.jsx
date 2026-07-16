@@ -3,6 +3,20 @@ const GROUP_LABEL = {
   informed: "Informed search",
 };
 
+const COMPARE_GROUPS = {
+  uninformed: {
+    label: "Uninformed search",
+    description: "Compare BFS, DFS and UCS",
+    algorithms: ["bfs", "dfs", "ucs"],
+  },
+
+  informed: {
+    label: "Informed search",
+    description: "Compare Greedy and A*",
+    algorithms: ["greedy", "astar"],
+  },
+};
+
 const HEURISTIC_LABEL = {
   null: "None",
   manhattan: "Manhattan distance",
@@ -17,6 +31,10 @@ function problemPatch(problem) {
     heuristic: problem === "eat_all" ? "farthest_food" : "manhattan",
     goal: null,
   };
+}
+
+function formatMapLabel(map) {
+  return map ? map.charAt(0).toUpperCase() + map.slice(1) : map;
 }
 
 function Field({ label, hint, children, className = "" }) {
@@ -116,26 +134,26 @@ export function ControlDeck({
   }
 
   if (tab === "compare") {
+    const selectedGroup = cfg.compareGroup || "informed";
+
     const selected = cfg.compareAlgos || [];
-    const compareUsesHeuristic = selected.some((key) => algoInfo[key]?.uses_heuristic);
-    const validSelection = selected.length >= 2 && selected.length <= 5;
-    const allSelected = algorithms.length > 0 && selected.length === algorithms.length;
+
+    const compareUsesHeuristic = selected.some(
+      (key) => algoInfo[key]?.uses_heuristic
+    );
+
+    const validSelection =
+      selectedGroup === "uninformed"
+        ? selected.length === 3
+        : selected.length === 2;
 
     return (
       <section className="lab-panel compare-config" aria-labelledby="compare-config-title">
         <div className="panel-heading">
           <div>
             <p className="section-kicker">Experiment setup</p>
-            <h2 id="compare-config-title">Select algorithms</h2>
+            <h2 id="compare-config-title">Select search type</h2>
           </div>
-          <button
-            type="button"
-            className="button ghost compact"
-            disabled={busy}
-            onClick={() => set({ compareAlgos: allSelected ? [] : algorithms.map((algorithm) => algorithm.key) }, true)}
-          >
-            {allSelected ? "Deselect" : "Select all"}
-          </button>
         </div>
 
         <div className="config-grid compare-fields">
@@ -144,7 +162,7 @@ export function ControlDeck({
               onProblemChange?.();
               set({ map: event.target.value, goal: null }, true);
             }}>
-              {maps.map((map) => <option key={map} value={map}>{map}</option>)}
+              {maps.map((map) => <option key={map} value={map}>{formatMapLabel(map)}</option>)}
             </select>
           </Field>
           <Field label="Problem">
@@ -152,8 +170,8 @@ export function ControlDeck({
               onProblemChange?.(event.target.value);
               set(problemPatch(event.target.value), true);
             }}>
-              <option value="eat_all">Eat all food</option>
-              <option value="path_to_cell">Go to selected cell</option>
+              <option value="eat_all">Eat-all-dots</option>
+              <option value="path_to_cell">Pathfinding</option>
             </select>
           </Field>
           {compareUsesHeuristic && (
@@ -163,45 +181,66 @@ export function ControlDeck({
               </select>
             </Field>
           )}
-          <Field label="Comparison target" hint={cfg.problem === "path_to_cell" ? "Target used for every algorithm." : "Compared over all food."}>
-            <output className="field-output">
-              {cfg.problem === "eat_all" ? "All food" : cfg.goal ? `(${cfg.goal[0]}, ${cfg.goal[1]})` : "Default: farthest cell"}
-            </output>
-          </Field>
         </div>
 
-        <fieldset className="algorithm-picker">
-          <legend>Algorithms to compare</legend>
-          <div>
-            {algorithms.map((algorithm) => {
-              const checked = selected.includes(algorithm.key);
-              return (
-                <label key={algorithm.key} className={checked ? "is-selected" : ""}>
-                  <input
-                    type="checkbox"
-                    checked={checked}
-                    disabled={busy}
-                    onChange={(event) => {
-                      const next = new Set(selected);
-                      if (event.target.checked) next.add(algorithm.key);
-                      else next.delete(algorithm.key);
-                      set({ compareAlgos: [...next] }, true);
-                    }}
-                  />
-                  <span>{algorithm.name}</span>
-                  <small>{GROUP_LABEL[algorithm.group]}</small>
-                </label>
-              );
-            })}
-          </div>
-        </fieldset>
+        <div className="compare-selection-row">
+          <fieldset className="algorithm-picker">
+            <legend>Search type to compare</legend>
 
-        {!validSelection && <p className="field-error" role="alert">Select 2 to 5 algorithms.</p>}
-        <div className="compare-submit-row">
-          <button className="button primary compare-submit" disabled={busy || !validSelection} onClick={onCompare}>
-            {busy ? "Comparing" : `Run comparison of ${selected.length} algorithms`}
-          </button>
-          {busy && <button className="button danger" onClick={onReset}>Stop</button>}
+            <div>
+              {Object.entries(COMPARE_GROUPS).map(
+                ([groupKey, group]) => {
+                  const checked = selectedGroup === groupKey;
+
+                  return (
+                    <label
+                      key={groupKey}
+                      className={checked ? "is-selected" : ""}
+                    >
+                      <input
+                        type="radio"
+                        name="compare-search-group"
+                        checked={checked}
+                        disabled={busy}
+                        onChange={() => {
+                          /*
+                           * Radio button hoạt động giống lựa chọn duy nhất:
+                           * tại một thời điểm chỉ được chọn một nhóm.
+                           */
+                          set(
+                            {
+                              compareGroup: groupKey,
+                              compareAlgos: group.algorithms,
+                            },
+                            true
+                          );
+                        }}
+                      />
+
+                      <span>{group.label}</span>
+
+                      <small>{group.description}</small>
+                    </label>
+                  );
+                }
+              )}
+            </div>
+          </fieldset>
+
+          <div className="compare-submit-row">
+            <button
+              className="button primary compare-submit"
+              disabled={busy || !validSelection}
+              onClick={onCompare}
+            >
+              {busy
+                ? "Comparing"
+                : selectedGroup === "uninformed"
+                  ? "Uninformed Compare"
+                  : "Informed Compare"}
+            </button>
+            {busy && <button className="button danger" onClick={onReset}>Stop</button>}
+          </div>
         </div>
       </section>
     );
@@ -225,7 +264,7 @@ export function ControlDeck({
             onProblemChange?.();
             set({ map: event.target.value, goal: null }, true);
           }}>
-            {maps.map((map) => <option key={map} value={map}>{map}</option>)}
+            {maps.map((map) => <option key={map} value={map}>{formatMapLabel(map)}</option>)}
           </select>
         </Field>
         <Field label="Problem">
@@ -233,8 +272,8 @@ export function ControlDeck({
             onProblemChange?.(event.target.value);
             set(problemPatch(event.target.value), true);
           }}>
-            <option value="eat_all">Eat all food</option>
-            <option value="path_to_cell">Go to selected cell</option>
+            <option value="eat_all">Eat-all-dots</option>
+            <option value="path_to_cell">Pathfinding</option>
           </select>
         </Field>
         <Field label="Algorithm">

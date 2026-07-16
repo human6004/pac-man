@@ -37,11 +37,6 @@ export function ProblemModelPanel({ problem }) {
             </div>
           ))}
         </dl>
-        <div className="model-dedup">
-          <strong>Duplicate-state pruning</strong>
-          <code>{model.key}</code>
-          <p>{model.dedup}</p>
-        </div>
         <p>{model.note}</p>
       </div>
     </details>

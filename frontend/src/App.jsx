@@ -24,7 +24,8 @@ const DEFAULT_CFG = {
   heuristic: "farthest_food",
   speed: 12,
   runMode: "auto",
-  compareAlgos: ["astar", "greedy"],
+  compareGroup: "informed",
+  compareAlgos: ["greedy", "astar"],
   goal: null,
 };
 
@@ -48,7 +49,6 @@ function StatusStrip({ runner, progress }) {
         <span>{PHASE_LABEL[runner.phase] || "Ready"}</span>
         <strong>{runner.status}</strong>
       </div>
-      <div><span>Step</span><strong>{progress?.step ?? 0}/{progress?.total ?? 0}</strong></div>
       <div><span>CURRENT</span><strong>{position}</strong></div>
       <div><span>Action</span><strong>{node?.action || "-"}</strong></div>
       <div><span>Food</span><strong>{node?.food?.length ?? "-"}</strong></div>
@@ -267,7 +267,7 @@ export default function App() {
                 <div className="map-target">
                   <span>Target</span>
                   <strong>{cfg.problem === "eat_all" ? "All food" : cfg.goal ? `(${cfg.goal[0]}, ${cfg.goal[1]})` : "Farthest cell"}</strong>
-                </div>   
+                </div>
               </div>
               <CRTScreen
                 ref={canvasRef}
@@ -295,8 +295,8 @@ export default function App() {
             </div>
           </div>
 
-          <StatusStrip runner={runner} progress={runner.progress} />
           <ControlDeck {...deckProps} tab="play" section="run" progress={runner.progress} />
+          <StatusStrip runner={runner} progress={runner.progress} />
           <StatsPanel stats={runner.stats} />
           <ProblemModelPanel problem={cfg.problem} />
         </div>
@@ -307,16 +307,17 @@ export default function App() {
           <ControlDeck {...deckProps} tab="compare" />
           {runner.compareRows.length > 0 ? (
             <>
-              <ComparisonView rows={runner.compareRows} algoInfo={meta.algoInfo} />
-              <CompareTable rows={runner.compareRows} algoInfo={meta.algoInfo} />
-              <CompareCharts rows={runner.compareRows} algoInfo={meta.algoInfo} />
-              <ControlDeck {...deckProps} tab="compare" section="compare-playback" progress={runner.compareProgress} />
               <ComparisonTrees
                 rows={runner.compareRows}
                 algoInfo={meta.algoInfo}
                 problem={cfg.problem}
                 treeStep={runner.compareTreeStep}
               />
+              <ComparisonView rows={runner.compareRows} algoInfo={meta.algoInfo} />
+              <CompareTable rows={runner.compareRows} algoInfo={meta.algoInfo} />
+              <CompareCharts rows={runner.compareRows} algoInfo={meta.algoInfo} />
+              <ControlDeck {...deckProps} tab="compare" section="compare-playback" progress={runner.compareProgress} />
+
               <FghChart rows={runner.compareRows} algoInfo={meta.algoInfo} />
             </>
           ) : (
