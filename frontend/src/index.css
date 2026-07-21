@@ -20,6 +20,7 @@
   --state-open: #2149bf;
   --state-current: #c9363e;
   --state-closed: #666c83;
+  --state-path: #12924b;
   --danger-ink: #ffffff;
   --tree-node: #f4f5ff;
   --tree-node-head: #e3e5f4;
@@ -56,6 +57,7 @@
   --state-open: #5267ff;
   --state-current: #fb7185;
   --state-closed: #64748b;
+  --state-path: #34d399;
   --danger-ink: #fff1f2;
   --tree-node: #0f172a;
   --tree-node-head: #172554;

@@ -29,12 +29,14 @@ const NODE_COLOR = {
   closed: "var(--state-closed)",
   current: "var(--state-current)",
   open: "var(--state-open)",
+  path: "var(--state-path)",
 };
 
 const NODE_OPACITY = {
   closed: 0.45,
   current: 1,
   open: 1,
+  path: 1,
 };
 
 const METRIC_COLOR = {
@@ -51,6 +53,19 @@ const METRIC_DESCRIPTION = {
   f: "f = g + h",
 };
 
+// Tập id các node nằm trên đường đi từ goal ngược lên root (đường lời giải).
+function solutionPathIds(tree, byId) {
+  const goal = tree.find((n) => n.goal);
+  if (!goal) return new Set();
+  const ids = new Set();
+  let node = goal;
+  while (node) {
+    ids.add(node.id);
+    node = node.parent == null ? null : byId.get(node.parent);
+  }
+  return ids;
+}
+
 function treeState(tree, step) {
   const byId = new Map(tree.map((n) => [n.id, n]));
   const cls = new Map();
@@ -59,6 +74,12 @@ function treeState(tree, step) {
     .filter((n) => n != null);
   const maxStep = expandedOrders.length ? Math.max(...expandedOrders) + 1 : 0;
   const safeStep = Math.max(0, Math.min(step || 0, maxStep + 1));
+
+  // Chỉ tô đường lời giải khi goal đã được expand tại bước hiện tại.
+  const goal = tree.find((n) => n.goal);
+  const goalReached =
+    goal && goal.expanded_order != null && safeStep - 1 >= goal.expanded_order;
+  const pathIds = goalReached ? solutionPathIds(tree, byId) : new Set();
 
   for (const n of tree) {
     const expanded = n.expanded_order;
@@ -76,6 +97,10 @@ function treeState(tree, step) {
         parent.expanded_order < safeStep;
       cls.set(n.id, n.parent == null || parentExpanded ? "open" : "hidden");
     }
+    // Node đã expand nằm trên đường lời giải -> tô màu path.
+    if (pathIds.has(n.id) && cls.get(n.id) !== "hidden") {
+      cls.set(n.id, "path");
+    }
   }
 
   return { byId, cls };
@@ -88,7 +113,14 @@ function fmt(v) {
 function NodeCard({ node, state, problem, algorithm }) {
   const border = NODE_COLOR[state] || "#8891b8";
   const opacity = NODE_OPACITY[state] ?? 1;
-  const borderWidth = state === "current" ? 2.8 : state === "open" ? 2.2 : 1.7;
+  const borderWidth =
+    state === "current"
+      ? 2.8
+      : state === "path"
+        ? 2.6
+        : state === "open"
+          ? 2.2
+          : 1.7;
   const [r, c] = node.pos || ["?", "?"];
   const eatAll = problem === "eat_all";
   const foodLeft = node.food?.length ?? 0; // F = food remaining at this node
@@ -99,7 +131,13 @@ function NodeCard({ node, state, problem, algorithm }) {
     ? `State ((${r},${c}), ${foodLeft})\nF is the food remaining: ${foodLeft}\n{${foodSet}}`
     : `State p=(${r},${c})`;
   const label =
-    state === "current" ? "CURRENT" : state === "open" ? "OPEN" : "CLOSED";
+    state === "current"
+      ? "CURRENT"
+      : state === "path"
+        ? "PATH"
+        : state === "open"
+          ? "OPEN"
+          : "CLOSED";
   const visitLabel =
     state === "closed" && node.expanded_order != null
       ? `#${node.expanded_order}`
@@ -692,17 +730,22 @@ function TreeSvg({
             expanded, CLOSED is done.
           </desc>
           {laid.all.flatMap((node) =>
-            node.kids.map((child) => (
-              <line
-                key={`${node.id}-${child.id}`}
-                x1={node.x + NODE_W / 2}
-                y1={node.y + NODE_H}
-                x2={child.x + NODE_W / 2}
-                y2={child.y}
-                stroke="var(--tree-edge)"
-                strokeWidth="1.5"
-              />
-            )),
+            node.kids.map((child) => {
+              // Cạnh nằm trên đường lời giải khi cả cha lẫn con đều là path.
+              const onPath =
+                cls.get(node.id) === "path" && cls.get(child.id) === "path";
+              return (
+                <line
+                  key={`${node.id}-${child.id}`}
+                  x1={node.x + NODE_W / 2}
+                  y1={node.y + NODE_H}
+                  x2={child.x + NODE_W / 2}
+                  y2={child.y}
+                  stroke={onPath ? "var(--state-path)" : "var(--tree-edge)"}
+                  strokeWidth={onPath ? 3 : 1.5}
+                />
+              );
+            }),
           )}
           {laid.all.map((node) => (
             <NodeCard
@@ -862,6 +905,7 @@ function TreeLegend({ problem, algorithm }) {
             CURRENT: expanding
           </LegendItem>
           <LegendItem color="var(--state-closed)">CLOSED: done</LegendItem>
+          <LegendItem color="var(--state-path)">PATH: solution</LegendItem>
         </div>
 
         <div>
