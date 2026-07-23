@@ -24,20 +24,30 @@ def bfs(problem: SearchProblem, record_tree: bool = False) -> SearchResult:
     start = problem.initial_state()
     start_node = Node(start)
     tree.created(start_node, 0.0, f_val=None)
-    if problem.is_goal(start):
-        tree.expanded(start_node, 0.0, f_val=None)
-        return success_result(start_node, metrics, visited_order, tree)
+    # if problem.is_goal(start):
+    #     tree.expanded(start_node, 0.0, f_val=None)
+    #     return success_result(start_node, metrics, visited_order, tree)
 
     frontier = deque([start_node])
     explored = {start}
 
     while frontier:
         metrics.observe_frontier(len(frontier))
+        # node = frontier.popleft()
+        # metrics.expand()
+        # metrics.observe_depth(node.depth)
+        # visited_order.append(node.state.pacman)
+        # tree.expanded(node, 0.0, f_val=None)
         node = frontier.popleft()
-        metrics.expand()
+
         metrics.observe_depth(node.depth)
         visited_order.append(node.state.pacman)
         tree.expanded(node, 0.0, f_val=None)
+
+        if problem.is_goal(node.state):
+            return success_result(node, metrics, visited_order, tree)
+
+        metrics.expand()
 
         for action in problem.actions(node.state):
             nxt = problem.result(node.state, action)
@@ -52,11 +62,16 @@ def bfs(problem: SearchProblem, record_tree: bool = False) -> SearchResult:
                 depth=node.depth + 1,
                 nid=nid,
             )
+            # tree.created(child, 0.0, f_val=None)
+            # metrics.generate()
+            # if problem.is_goal(nxt):
+            #     tree.expanded(child, 0.0, f_val=None)
+            #     return success_result(child, metrics, visited_order, tree)
+            # explored.add(nxt)
+            # frontier.append(child)
             tree.created(child, 0.0, f_val=None)
             metrics.generate()
-            if problem.is_goal(nxt):
-                tree.expanded(child, 0.0, f_val=None)
-                return success_result(child, metrics, visited_order, tree)
+
             explored.add(nxt)
             frontier.append(child)
 
@@ -131,18 +146,29 @@ def ucs(problem: SearchProblem, record_tree: bool = False) -> SearchResult:
 
     while frontier:
         metrics.observe_frontier(len(frontier))
+        # heapq.heappop() lấy phần tử nhỏ nhất khỏi min-heap.
         g, _, node = heapq.heappop(frontier)
 
         if g > best_g.get(node.state, float("inf")):
             continue
-    
-        metrics.expand()
+            
+        # metrics.expand()
+        # # ghi nhận kích thước hiện tại của frontier.
+        # metrics.observe_depth(node.depth)
+        # visited_order.append(node.state.pacman)
+        # tree.expanded(node, 0.0, f_val=node.cost)
+
+        # if problem.is_goal(node.state):
+        #     return success_result(node, metrics, visited_order, tree)
+        
         metrics.observe_depth(node.depth)
         visited_order.append(node.state.pacman)
         tree.expanded(node, 0.0, f_val=node.cost)
 
         if problem.is_goal(node.state):
             return success_result(node, metrics, visited_order, tree)
+
+        metrics.expand()
 
         for action in problem.actions(node.state):
             nxt = problem.result(node.state, action)
@@ -159,6 +185,7 @@ def ucs(problem: SearchProblem, record_tree: bool = False) -> SearchResult:
                     nid=counter,
                 )
                 tree.created(child, 0.0, f_val=new_g)
+                # Xét nêu
                 heapq.heappush(frontier, (new_g, counter, child))
                 metrics.generate()
 
