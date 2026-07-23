@@ -26,6 +26,8 @@
   --danger-ink: #ffffff;
   --tree-node: #f4f5ff;
   --tree-node-head: #e3e5f4;
+  --tree-state-text: #000000;
+  --current-food-text: #2121de;
   --tree-edge: #686dad;
   --chart-grid: #c4c8df;
   --shadow:
@@ -64,6 +66,8 @@
   --danger-ink: #fff1f2;
   --tree-node: #0f172a;
   --tree-node-head: #172554;
+  --tree-state-text: #fbbf24;
+  --current-food-text: #fbbf24;
   --tree-edge: #475569;
   --chart-grid: #334155;
   --shadow: 0 12px 28px rgb(0 0 0 / 0.24);
@@ -925,7 +929,7 @@ input:disabled {
   line-height: 1.25;
 }
 .current-food-set {
-  color: var(--color-amber);
+  color: var(--current-food-text);
   font-style: normal;
 }
 .status-main {
@@ -951,7 +955,8 @@ input:disabled {
 }
 
 .playback-dock {
-  display: flex;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
   align-items: center;
   justify-content: space-between;
   gap: 16px;
@@ -986,6 +991,16 @@ input:disabled {
   justify-content: flex-end;
   gap: 8px;
 }
+.path-sequence {
+  grid-column: 1 / -1;
+  display: flex;
+  justify-content: flex-start;
+  gap: 8px;
+  color: var(--color-inky);
+  font-family: var(--font-term);
+}
+.path-sequence span { font-weight: 800; text-transform: uppercase; }
+.path-sequence strong { color: var(--color-amber); overflow-wrap: anywhere; }
 
 .metric-strip,
 .insight-strip {
@@ -1573,7 +1588,7 @@ input:disabled {
   }
   .playback-dock {
     align-items: stretch;
-    flex-direction: column;
+    grid-template-columns: minmax(0, 1fr);
   }
   .playback-actions {
     display: grid;

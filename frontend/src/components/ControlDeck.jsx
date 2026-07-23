@@ -80,6 +80,9 @@ function PlaybackDock({
   onStepBack,
   canStepBack,
   canStepNext,
+  canReplayPath,
+  pathActions,
+  onPath,
   onReset,
 }) {
   const auto = cfg.runMode !== "step";
@@ -97,6 +100,7 @@ function PlaybackDock({
         <button className="button secondary" disabled={busy || !canStepBack || !onStepBack} onClick={onStepBack}>
           Step back
         </button>
+        {canReplayPath && <button className="button secondary" disabled={busy || !onPath} onClick={onPath}>Path</button>}
         <button className="button primary" disabled={primaryDisabled} onClick={primaryAction}>
           {primaryLabel}
         </button>
@@ -104,6 +108,7 @@ function PlaybackDock({
           {busy ? "Stop" : "Reset"}
         </button>
       </div>
+      {canReplayPath && <div className="path-sequence"><span>Path</span><strong>{pathActions.map((action) => action.toLowerCase()).join(" → ")}</strong></div>}
     </section>
   );
 }
@@ -122,10 +127,13 @@ export function ControlDeck({
   progress,
   canStepBack,
   canStepNext,
+  canReplayPath,
+  pathActions,
   onRun,
   onPause,
   onStep,
   onStepBack,
+  onPath,
   onReset,
   onProblemChange,
   mapImporting = false,
@@ -155,6 +163,9 @@ export function ControlDeck({
         onStepBack={onStepBack}
         canStepBack={canStepBack}
         canStepNext={canStepNext}
+        canReplayPath={canReplayPath}
+        pathActions={pathActions}
+        onPath={onPath}
         onReset={onReset}
       />
     );
