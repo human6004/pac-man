@@ -2,8 +2,10 @@ const METRICS_BY_ALGORITHM = {
   bfs: ["depth"],
   dfs: ["depth"],
   ucs: ["g"],
-  greedy: ["g", "h", "f"],
-  astar: ["g", "h", "f"],
+  // greedy: ["h", "f"],
+  // greedy: ["h"],
+  greedy: ["f", "g", "h"],
+  astar: ["f", "g", "h"],
 };
 
 export function treeMetricsFor(algorithm) {

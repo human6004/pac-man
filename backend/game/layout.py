@@ -35,6 +35,8 @@ def parse_layout(text: str) -> GameMap:
     
     height = len(lines)
     width = len(lines[0])
+    if not 4 <= height <= 9 or not 4 <= width <= 9:
+        raise ValueError("Map phải có kích thước từ 4x4 đến 9x9.")
 
     # Kiểm tra tính hợp lệ của layout
     for row, line in enumerate(lines):
@@ -84,6 +86,9 @@ def parse_layout(text: str) -> GameMap:
 
     if pacman is None:
         raise ValueError("Layout phải có một Pac-man.")
+
+    if len(food) > 7:
+        raise ValueError("Map chỉ được có tối đa 7 thức ăn.")
 
     return GameMap(
         maze=Maze(

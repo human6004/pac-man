@@ -29,7 +29,7 @@ def greedy(problem: SearchProblem, heuristic: Heuristic = null_heuristic, record
     depth=0,
     nid=0,
 )
-    tree.created(start_node, h0)
+    tree.created(start_node, h0, f_val=h0)
     frontier = [(h0, counter, start_node)]
     frontier_states = {start}
     explored = set()
@@ -46,7 +46,9 @@ def greedy(problem: SearchProblem, heuristic: Heuristic = null_heuristic, record
         metrics.expand()
         metrics.observe_depth(node.depth)
         visited_order.append(node.state.pacman)
-        tree.expanded(node, heuristic(node.state, problem))
+        
+        h = heuristic(node.state, problem)
+        tree.expanded(node, h, f_val=h)
 
         if problem.is_goal(node.state):
             return success_result(node, metrics, visited_order, tree)
@@ -67,7 +69,7 @@ def greedy(problem: SearchProblem, heuristic: Heuristic = null_heuristic, record
                 nid=counter,
             )
             h = heuristic(nxt, problem)
-            tree.created(child, h)
+            tree.created(child, h, f_val=h)
             heapq.heappush(frontier, (h, counter, child))
             frontier_states.add(nxt)
             metrics.generate()
@@ -91,7 +93,7 @@ def astar(problem: SearchProblem, heuristic: Heuristic = null_heuristic, record_
         depth=0,
         nid=0,
     )
-    tree.created(start_node, h0)
+    tree.created(start_node, h0, f_val=g0 + h0)
     frontier = [(g0 + h0, counter, start_node)]
     best_g = {start: 0.0}
     
@@ -105,7 +107,8 @@ def astar(problem: SearchProblem, heuristic: Heuristic = null_heuristic, record_
         metrics.expand()
         metrics.observe_depth(node.depth)
         visited_order.append(node.state.pacman)
-        tree.expanded(node, heuristic(node.state, problem))
+        h = heuristic(node.state, problem)
+        tree.expanded(node, h, f_val=node.cost + h)
 
         if problem.is_goal(node.state):
             return success_result(node, metrics, visited_order, tree)
@@ -126,7 +129,8 @@ def astar(problem: SearchProblem, heuristic: Heuristic = null_heuristic, record_
                     nid=counter,
                 )
                 h = heuristic(nxt, problem)
-                tree.created(child, h)
+                h = heuristic(nxt, problem)
+                tree.created(child, h, f_val=new_g + h)
                 heapq.heappush(frontier, (new_g + h, counter, child))
                 metrics.generate()
 

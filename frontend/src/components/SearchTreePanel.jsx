@@ -1,12 +1,6 @@
 // SearchTreePanel.jsx — SVG search tree with coordinate cards, synced step by step.
 
-import {
-  useEffect,
-  useLayoutEffect,
-  useMemo,
-  useRef,
-  useState,
-} from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import {
   clampZoom,
   fitZoom,
@@ -153,12 +147,7 @@ function NodeCard({ node, state, problem, algorithm }) {
       aria-label={tooltip}
     >
       <title>{tooltip}</title>
-      <rect
-        width={NODE_W}
-        height={NODE_H}
-        rx="8"
-        fill="var(--tree-node)"
-      />
+      <rect width={NODE_W} height={NODE_H} rx="8" fill="var(--tree-node)" />
       <path
         d={`M 8 0 H ${NODE_W - 8} A 8 8 0 0 1 ${NODE_W} 8 V 22 H 0 V 8 A 8 8 0 0 1 8 0 Z`}
         fill="var(--tree-node-head)"
@@ -190,7 +179,7 @@ function NodeCard({ node, state, problem, algorithm }) {
         textAnchor="middle"
         fontSize={eatAll ? 18 : 24}
         fontFamily="var(--font-term)"
-        fill="var(--color-pac)"
+        fill="#000"
       >
         {eatAll ? `((${r},${c}), ${foodLeft})` : `(${r},${c})`}
       </text>
@@ -213,7 +202,11 @@ function NodeCard({ node, state, problem, algorithm }) {
         fill="var(--text-primary)"
       >
         {metrics.map((metric, index) => (
-          <tspan key={metric} dx={index ? 8 : undefined} fill={METRIC_COLOR[metric]}>
+          <tspan
+            key={metric}
+            dx={index ? 8 : undefined}
+            fill={METRIC_COLOR[metric]}
+          >
             {metric}={fmt(node[metric])}
           </tspan>
         ))}
@@ -253,7 +246,7 @@ function scrollNodeToCenter(scroller, x, y, zoom, smoothFocus) {
     ),
     behavior:
       smoothFocus &&
-        !window.matchMedia?.("(prefers-reduced-motion: reduce)").matches
+      !window.matchMedia?.("(prefers-reduced-motion: reduce)").matches
         ? "smooth"
         : "auto",
   });
@@ -283,11 +276,11 @@ function TreeSvg({
   const [zoom, setZoom] = useState(1);
 
   /*
- * Chỉ dùng các node đã xuất hiện ở bước hiện tại để tính layout.
- *
- * Trước đây toàn bộ cây được dùng để tính tọa độ rồi mới ẩn node,
- * khiến các node đang hiển thị vẫn cách nhau theo kích thước cây cuối.
- */
+   * Chỉ dùng các node đã xuất hiện ở bước hiện tại để tính layout.
+   *
+   * Trước đây toàn bộ cây được dùng để tính tọa độ rồi mới ẩn node,
+   * khiến các node đang hiển thị vẫn cách nhau theo kích thước cây cuối.
+   */
   const { cls, laid } = useMemo(() => {
     const state = treeState(tree, step);
 
@@ -325,13 +318,7 @@ function TreeSvg({
       return;
     }
 
-    scrollNodeToCenter(
-      scroller,
-      focusX,
-      focusY,
-      zoom,
-      smoothFocus,
-    );
+    scrollNodeToCenter(scroller, focusX, focusY, zoom, smoothFocus);
   }, [focusId, focusX, focusY, zoom, followCurrent, smoothFocus]);
 
   useEffect(() => {
@@ -355,9 +342,7 @@ function TreeSvg({
 
       const direction = event.deltaY < 0 ? 1 : -1;
 
-      const nextZoom = clampZoom(
-        zoomRef.current + direction * ZOOM_STEP,
-      );
+      const nextZoom = clampZoom(zoomRef.current + direction * ZOOM_STEP);
 
       if (nextZoom === zoomRef.current) return;
 
@@ -374,7 +359,6 @@ function TreeSvg({
       scroller.removeEventListener("wheel", handleNativeWheel);
     };
   }, [laid]);
-
 
   useLayoutEffect(() => {
     const scroller = scrollerRef.current;
@@ -402,11 +386,7 @@ function TreeSvg({
   };
 
   useEffect(() => {
-    if (
-      !autoFit ||
-      !laid ||
-      initialAutoFitDoneRef.current
-    ) {
+    if (!autoFit || !laid || initialAutoFitDoneRef.current) {
       return undefined;
     }
 
@@ -622,28 +602,28 @@ function TreeSvg({
           role="toolbar"
           aria-label="Search tree controls"
         >
-          <div className="tree-toolbar-counts" aria-label="Search tree node counts">
-            <span>OPEN: <strong>{counts.open}</strong></span>
-            <span>CLOSED: <strong>{counts.closed}</strong></span>
+          <div
+            className="tree-toolbar-counts"
+            aria-label="Search tree node counts"
+          >
+            <span>
+              OPEN: <strong>{counts.open}</strong>
+            </span>
+            <span>
+              CLOSED: <strong>{counts.closed}</strong>
+            </span>
           </div>
           <button
             type="button"
             className="tool-btn tool-btn-zoom"
             aria-label="Zoom out tree"
             disabled={zoom <= MIN_ZOOM}
-            onClick={() =>
-              handleManualZoom(
-                zoomRef.current - ZOOM_STEP,
-              )
-            }
+            onClick={() => handleManualZoom(zoomRef.current - ZOOM_STEP)}
           >
             −
           </button>
 
-          <output
-            className="tree-zoom"
-            aria-live="polite"
-          >
+          <output className="tree-zoom" aria-live="polite">
             {Math.round(zoom * 100)}%
           </output>
 
@@ -652,11 +632,7 @@ function TreeSvg({
             className="tool-btn tool-btn-zoom"
             aria-label="Zoom in tree"
             disabled={zoom >= MAX_ZOOM}
-            onClick={() =>
-              handleManualZoom(
-                zoomRef.current + ZOOM_STEP,
-              )
-            }
+            onClick={() => handleManualZoom(zoomRef.current + ZOOM_STEP)}
           >
             +
           </button>
@@ -679,8 +655,9 @@ function TreeSvg({
 
           <button
             type="button"
-            className={`tool-btn tool-btn-text ${followCurrent ? "is-active" : ""
-              }`}
+            className={`tool-btn tool-btn-text ${
+              followCurrent ? "is-active" : ""
+            }`}
             aria-pressed={followCurrent}
             onClick={handleFollowCurrent}
           >
@@ -702,8 +679,9 @@ function TreeSvg({
       )}
       <div
         ref={scrollerRef}
-        className={`${heightClass} tree-scroller select-none touch-none ${dragging ? "cursor-grabbing" : "cursor-grab"
-          }`}
+        className={`${heightClass} tree-scroller select-none touch-none ${
+          dragging ? "cursor-grabbing" : "cursor-grab"
+        }`}
         tabIndex={0}
         role="region"
         aria-label="Search tree. Use arrow keys to pan, plus or minus to zoom."
@@ -826,16 +804,9 @@ export function SearchTreePanel({
       url.hash = "";
       url.searchParams.set("treeFullscreen", "1");
 
-      window.open(
-        url.toString(),
-        "_blank",
-        "noopener,noreferrer",
-      );
+      window.open(url.toString(), "_blank", "noopener,noreferrer");
     } catch (error) {
-      console.error(
-        "Cannot open the full search tree view.",
-        error,
-      );
+      console.error("Cannot open the full search tree view.", error);
     }
   };
   return (
@@ -870,9 +841,7 @@ export function SearchTreePanel({
             smoothFocus={smoothFocus}
             compact={compact}
             autoFit={fullscreen}
-            onOpenFullscreen={
-              fullscreen ? null : openFullscreenTree
-            }
+            onOpenFullscreen={fullscreen ? null : openFullscreenTree}
           />
           {!compact && <TreeLegend problem={problem} algorithm={algorithm} />}
         </>
@@ -947,13 +916,14 @@ export function SearchTreePreview({
   }
 
   const displayStep = step == null ? lastTreeStep(tree) : step;
-  const openFullscreenTree = () => openTreeFullscreen({
-    tree,
-    step: displayStep,
-    treeMeta,
-    problem,
-    algorithm,
-  });
+  const openFullscreenTree = () =>
+    openTreeFullscreen({
+      tree,
+      step: displayStep,
+      treeMeta,
+      problem,
+      algorithm,
+    });
 
   return (
     <section

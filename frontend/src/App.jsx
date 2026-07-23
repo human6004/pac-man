@@ -13,6 +13,7 @@ import { effects } from "./game/effects";
 import { PacmanRenderer } from "./game/PacmanRenderer";
 import { useMetadata } from "./hooks/useMetadata";
 import { useRunner } from "./hooks/useRunner";
+import { readImportedMap } from "./mapImport";
 import { audio } from "./sound/audio";
 import { applyTheme, getInitialTheme, persistTheme } from "./theme";
 
@@ -39,16 +40,21 @@ const PHASE_LABEL = {
 
 const formatCost = (value) => Number.isFinite(value) ? Math.round(value * 100) / 100 : "-";
 
-function StatusStrip({ runner, progress }) {
+function StatusStrip({ runner, progress, problem }) {
   const node = progress?.current;
   const position = node?.pos ? `(${node.pos[0]}, ${node.pos[1]})` : "-";
+  const foodSet = `{${(node?.food || []).map(([row, col]) => `(${row}, ${col})`).join(", ")}}`;
+  const current = node?.pos && problem === "eat_all" ? `(${position}; ` : position;
   return (
     <section className={`status-strip phase-${runner.phase}`} aria-live="polite" aria-atomic="true">
       <div className="status-main">
         <span>{PHASE_LABEL[runner.phase] || "Ready"}</span>
         <strong>{runner.status}</strong>
       </div>
-      <div><span>CURRENT</span><strong>{position}</strong></div>
+      <div>
+        <span>CURRENT</span>
+        <strong>{node?.pos && problem === "eat_all" ? <>{current}<em className="current-food-set">{foodSet}</em>)</> : current}</strong>
+      </div>
       <div><span>Action</span><strong>{node?.action || "-"}</strong></div>
       <div><span>Food</span><strong>{node?.food?.length ?? "-"}</strong></div>
       <div className="status-costs">
@@ -72,6 +78,7 @@ export default function App() {
   const [soundOn, setSoundOn] = useState(true);
   const [poweron, setPoweron] = useState(true);
   const [mapError, setMapError] = useState(null);
+  const [mapImporting, setMapImporting] = useState(false);
   const [rendererReady, setRendererReady] = useState(false);
   const [goalCursor, setGoalCursor] = useState(null);
   const [theme, setTheme] = useState(getInitialTheme);
@@ -202,6 +209,26 @@ export default function App() {
     setGoalCursor(null);
   };
 
+  const handleMapImport = async (file) => {
+    setMapImporting(true);
+    setMapError(null);
+    try {
+      await readImportedMap(file);
+      const imported = await Api.importMap(file);
+      if (!imported.name || !imported.map) throw new Error("Backend did not return the imported map.");
+      runner.reset();
+      handleProblemChange();
+      rendererRef.current?.setMap(imported.map);
+      rendererRef.current?.setProblem(cfg.problem);
+      meta.addMap(imported.name);
+      setCfg((current) => ({ ...current, map: imported.name, goal: null }));
+    } catch (error) {
+      setMapError(error.message);
+    } finally {
+      setMapImporting(false);
+    }
+  };
+
   const toggleTheme = () => {
     const next = theme === "dark" ? "light" : "dark";
     setTheme(next);
@@ -225,6 +252,8 @@ export default function App() {
     onStepBack: handleStepBack,
     onReset: runner.reset,
     onProblemChange: handleProblemChange,
+    mapImporting,
+    onImportMap: handleMapImport,
   };
 
   const error = meta.error || mapError;
@@ -298,7 +327,7 @@ export default function App() {
           </div>
 
           <ControlDeck {...deckProps} tab="play" section="run" progress={runner.progress} />
-          <StatusStrip runner={runner} progress={runner.progress} />
+          <StatusStrip runner={runner} progress={runner.progress} problem={cfg.problem} />
           <StatsPanel stats={runner.stats} />
           <ProblemModelPanel problem={cfg.problem} />
         </div>

@@ -76,7 +76,7 @@ class TreeRecorder:
         self._by_id: dict[int, dict] = {}
         self._expanded = 0
 
-    def created(self, node: "Node", h_val: float) -> None:
+    def created(self, node: "Node", h_val: float, f_val: float | None = None) -> None:
         if not self.enabled:
             return
         if node.nid in self._by_id:
@@ -93,7 +93,7 @@ class TreeRecorder:
             "food": [list(p) for p in sorted(getattr(node.state, "food", ()))],
             "g": node.cost,
             "h": h_val,
-            "f": node.cost + h_val,
+            "f": f_val,
             "depth": node.depth,
             "created_order": len(self.nodes),
             "expanded_order": None,
@@ -101,11 +101,16 @@ class TreeRecorder:
         self.nodes.append(item)
         self._by_id[node.nid] = item
 
-    def expanded(self, node: "Node", h_val: float) -> None:
+    def expanded(
+        self,
+        node: "Node",
+        h_val: float,
+        f_val: float | None,
+    ) -> None:
         if not self.enabled:
             return
         if node.nid not in self._by_id:
-            self.created(node, h_val)
+            self.created(node, h_val, f_val)
         item = self._by_id.get(node.nid)
         if item and item["expanded_order"] is None:
             item["expanded_order"] = self._expanded

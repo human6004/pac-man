@@ -49,5 +49,13 @@ export function useMetadata() {
     };
   }, []);
 
-  return state;
+  const addMap = (name) => {
+    setState((current) => (
+      current.maps.includes(name)
+        ? current
+        : { ...current, maps: [...current.maps, name] }
+    ));
+  };
+
+  return { ...state, addMap };
 }

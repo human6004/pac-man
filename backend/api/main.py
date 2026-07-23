@@ -10,11 +10,13 @@ Endpoints:
 from __future__ import annotations
 
 from typing import Dict, List
+from pathlib import Path
+from unicodedata import name
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, File, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 
-from ..game.layout import list_maps, load_layout
+from ..game.layout import MAPS_DIR, list_maps, load_layout, parse_layout
 from ..game.problem import EatAllDotProblem, PathToPointProblem, farthest_food
 from ..game.state import GameMap
 from ..search.heuristics import get_heuristic
@@ -105,10 +107,14 @@ def resolve_heuristic(heuristic_name: str, problem_kind: str) -> str:
         return "manhattan"
     return heuristic_name
 
+def get_game_map(name: str) -> GameMap:
+    if name in IMPORTED_MAPS:
+        return IMPORTED_MAPS[name]
+    return load_layout(name)
 
 def run_static(map_name: str, algo: str, heuristic_name: str, problem_kind: str, goal=None):
     try:
-        start = load_layout(map_name)
+        start = get_game_map(map_name)
     except FileNotFoundError:
         raise HTTPException(404, f"Không tìm thấy bản đồ '{map_name}'.")
     if algo not in SEARCH_ALGOS:
@@ -153,15 +159,14 @@ def get_maps():
 @app.get("/maps/{name}")
 def get_map(name: str):
     try:
-        return serialize_map(load_layout(name))
+        return serialize_map(get_game_map(name))
     except FileNotFoundError:
         raise HTTPException(404, f"Không tìm thấy bản đồ '{name}'.")
-
 
 @app.post("/solve")
 def solve(req: SolveRequest):
     result = run_static(req.map, req.algorithm, req.heuristic, req.problem, req.goal)
-    start = load_layout(req.map)
+    start = get_game_map(req.map)
     return {
         "map": serialize_map(start),
         "algorithm": req.algorithm,
@@ -194,3 +199,23 @@ def compare(req: CompareRequest):
         "problem": req.problem,
         "results": rows,
     }
+    
+IMPORTED_MAPS: dict[str, GameMap] = {}
+
+@app.post("/maps/import")
+async def import_map(file: UploadFile = File(...)):
+    if not (file.filename or "").lower().endswith(".txt"):
+        raise HTTPException(400, "Chỉ nhận file .txt.")
+
+    try:
+        layout = (await file.read()).decode("utf-8")
+        game_map = parse_layout(layout)
+    except UnicodeDecodeError as error:
+        raise HTTPException(400, "File phải dùng UTF-8.") from error
+    except ValueError as error:
+        raise HTTPException(400, str(error)) from error
+
+    name = Path(file.filename).stem.strip().lower() or "map"
+    IMPORTED_MAPS[name] = game_map
+    return {"name": name, "map": serialize_map(game_map)}
+

@@ -46,6 +46,29 @@ function Field({ label, hint, children, className = "" }) {
   );
 }
 
+function MapField({ maps, value, disabled, onChange, onImportMap }) {
+  const fileRef = useRef(null);
+  const importFile = async (event) => {
+    const file = event.target.files?.[0];
+    event.target.value = "";
+    if (file) await onImportMap?.(file);
+  };
+
+  return (
+    <Field label="Map" hint="Import .txt: 4–9 rows/columns, max 7 dots, exactly one P.">
+      <div className="map-select-row">
+        <select value={value} disabled={disabled} onChange={onChange}>
+          {maps.map((map) => <option key={map} value={map}>{formatMapLabel(map)}</option>)}
+        </select>
+        <button type="button" className="button compact secondary" disabled={disabled} onClick={() => fileRef.current?.click()}>
+          Import
+        </button>
+      </div>
+      <input ref={fileRef} hidden type="file" accept=".txt,text/plain" onChange={importFile} />
+    </Field>
+  );
+}
+
 function PlaybackDock({
   cfg,
   busy,
@@ -105,6 +128,8 @@ export function ControlDeck({
   onStepBack,
   onReset,
   onProblemChange,
+  mapImporting = false,
+  onImportMap,
 }) {
   const set = (patch, resetCached = false) => {
     if (resetCached) onReset?.();
@@ -159,14 +184,16 @@ export function ControlDeck({
         </div>
 
         <div className="config-grid compare-fields">
-          <Field label="Map">
-            <select value={cfg.map} disabled={busy} onChange={(event) => {
+          <MapField
+            maps={maps}
+            value={cfg.map}
+            disabled={busy || mapImporting}
+            onChange={(event) => {
               onProblemChange?.();
               set({ map: event.target.value, goal: null }, true);
-            }}>
-              {maps.map((map) => <option key={map} value={map}>{formatMapLabel(map)}</option>)}
-            </select>
-          </Field>
+            }}
+            onImportMap={onImportMap}
+          />
           <Field label="Problem">
             <select value={cfg.problem} disabled={busy} onChange={(event) => {
               onProblemChange?.(event.target.value);
@@ -264,7 +291,7 @@ export function ControlDeck({
     );
   }
 
-  const configLocked = busy || (cfg.runMode === "step" && canStepBack);
+  const configLocked = busy || mapImporting || (cfg.runMode === "step" && canStepBack);
   const usesHeuristic = algoInfo?.[cfg.algorithm]?.uses_heuristic;
 
   return (
@@ -276,14 +303,16 @@ export function ControlDeck({
         {configLocked && <span className="status-note">Reset to change configuration</span>}
       </div>
       <div className="config-grid">
-        <Field label="Map">
-          <select value={cfg.map} disabled={configLocked} onChange={(event) => {
+        <MapField
+          maps={maps}
+          value={cfg.map}
+          disabled={configLocked}
+          onChange={(event) => {
             onProblemChange?.();
             set({ map: event.target.value, goal: null }, true);
-          }}>
-            {maps.map((map) => <option key={map} value={map}>{formatMapLabel(map)}</option>)}
-          </select>
-        </Field>
+          }}
+          onImportMap={onImportMap}
+        />
         <Field label="Problem">
           <select value={cfg.problem} disabled={configLocked} onChange={(event) => {
             onProblemChange?.(event.target.value);
@@ -333,3 +362,4 @@ export function ControlDeck({
     </section>
   );
 }
+import { useRef } from "react";

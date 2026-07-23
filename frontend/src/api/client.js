@@ -26,6 +26,14 @@ async function _post(path, body, { signal } = {}) {
   return res.json();
 }
 
+async function _upload(path, file, { signal } = {}) {
+  const body = new FormData();
+  body.append("file", file);
+  const res = await fetch(BASE_URL + path, { method: "POST", body, signal });
+  if (!res.ok) await _throwHttp(res, path);
+  return res.json();
+}
+
 async function _get(path, { signal } = {}) {
   const res = await fetch(BASE_URL + path, { signal });
   if (!res.ok) await _throwHttp(res, path);
@@ -37,6 +45,7 @@ export const Api = {
   getAlgorithms: (options) => _get("/algorithms", options),
   getMaps: (options) => _get("/maps", options),
   getMap: (name, options) => _get(`/maps/${name}`, options),
+  importMap: (file, options) => _upload("/maps/import", file, options),
   solve: (req, options) => _post("/solve", req, options),
   compare: (req, options) => _post("/compare", req, options),
 };
