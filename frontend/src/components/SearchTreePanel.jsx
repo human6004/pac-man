@@ -179,7 +179,7 @@ function NodeCard({ node, state, problem, algorithm }) {
         textAnchor="middle"
         fontSize={eatAll ? 18 : 24}
         fontFamily="var(--font-term)"
-        fill="#000"
+        fill="var(--tree-state-text)"
       >
         {eatAll ? `((${r},${c}), ${foodLeft})` : `(${r},${c})`}
       </text>

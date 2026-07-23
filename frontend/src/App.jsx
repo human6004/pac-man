@@ -159,6 +159,7 @@ export default function App() {
   const handleRun = () => tab === "compare" ? runner.runCompareTree(cfg) : runner.runStatic(cfg);
   const handleStep = () => tab === "compare" ? runner.stepCompareTree(cfg, 1) : runner.stepStatic(cfg, 1);
   const handleStepBack = () => tab === "compare" ? runner.stepCompareTree(cfg, -1) : runner.stepStatic(cfg, -1);
+  const handlePath = () => runner.replayPath(cfg);
 
   const commitGoal = (cell) => {
     if (!cell) return;
@@ -246,10 +247,13 @@ export default function App() {
     paused: runner.paused,
     canStepBack: tab === "compare" ? runner.compareCanStepBack : runner.canStepBack,
     canStepNext: tab === "compare" ? runner.compareCanStepNext : runner.canStepNext,
+    canReplayPath: tab === "play" && runner.canReplayPath,
+    pathActions: runner.pathActions,
     onRun: handleRun,
     onPause: runner.pause,
     onStep: handleStep,
     onStepBack: handleStepBack,
+    onPath: handlePath,
     onReset: runner.reset,
     onProblemChange: handleProblemChange,
     mapImporting,

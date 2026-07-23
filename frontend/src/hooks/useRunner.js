@@ -44,11 +44,10 @@ function expandedTreeNodes(solve) {
     .sort((a, b) => a.expanded_order - b.expanded_order);
 }
 
-// Total static steps: one per expanded node + one final step that walks the
-// whole solution path to the goal at once (not one click per cell).
+// Total static steps: one per expanded search-tree node. The solution path is
+// replayed separately after the tree traversal completes.
 function staticTotal(solve) {
-  const path = solve?.path || [];
-  return expandedTreeNodes(solve).length + (path.length ? 1 : 0);
+  return expandedTreeNodes(solve).length;
 }
 
 function lastTreeStep(tree) {
@@ -74,6 +73,8 @@ export function useRunner(rendererRef) {
   const [busy, setBusy] = useState(false);
   const [paused, setPaused] = useState(false);
   const [stepState, setStepState] = useState(EMPTY_STEP_STATE);
+  const [canReplayPath, setCanReplayPath] = useState(false);
+  const [pathActions, setPathActions] = useState([]);
   const [compareStepState, setCompareStepState] = useState(EMPTY_STEP_STATE);
 
   // Animation control flags (refs so they don't trigger re-renders).
@@ -149,6 +150,7 @@ export function useRunner(rendererRef) {
       if (!isCurrentOperation(operation.id)) return;
       lastSolveRef.current = result;
       lastSolveKeyRef.current = staticKey(cfg);
+      setPathActions(result.actions || []);
       setTree(result.tree || []);
       setTreeMeta({ truncated: !!result.tree_truncated, limit: result.tree_limit || 0 });
       setPhase("replaying");
@@ -177,15 +179,10 @@ export function useRunner(rendererRef) {
         shouldPause
       );
       if (shouldStop() || !isCurrentOperation(operation.id)) return;
-      r.reset();
-      setStatus("Replaying path");
-      await r.animatePath(result.path, delay, shouldStop, shouldPause);
-      if (shouldStop() || !isCurrentOperation(operation.id)) return;
-
       setStats(result.stats);
-      setStatus("Complete");
+      setCanReplayPath(result.path.length > 0);
+      setStatus("Search tree complete");
       setPhase("complete");
-      audio.win();
     },
     [rendererRef, shouldStop, shouldPause, stepDelay, isCurrentOperation]
   );
@@ -205,6 +202,8 @@ export function useRunner(rendererRef) {
       runningRef.current = true;
       staticStepRef.current = 0;
       setStepState(EMPTY_STEP_STATE);
+      setCanReplayPath(false);
+      setPathActions([]);
       setSearchStep(0);
       setBusy(true);
       setPhase("solving");
@@ -250,6 +249,8 @@ export function useRunner(rendererRef) {
     lastSolveKeyRef.current = null;
     staticStepRef.current = 0;
     setStepState(EMPTY_STEP_STATE);
+    setCanReplayPath(false);
+    setPathActions([]);
     setSearchStep(0);
     setStats(null);
     setCompareRows([]);
@@ -266,53 +267,32 @@ export function useRunner(rendererRef) {
   }, [rendererRef, stopAnimation]);
 
   // Redraw the DETERMINISTIC static state at a specific step (used for step forward/back).
-  // step in [0, treeNodes.length + path.length]:
-  //   0..treeNodes.length   -> phase where Pac-man stands on the selected tree node
-  //   >treeNodes.length      -> phase walking along the path
+  // step in [0, treeNodes.length]: Pac-man stands on the selected tree node.
   const renderStaticAt = useCallback(
     (step) => {
       const r = rendererRef.current;
       const solve = lastSolveRef.current;
       if (!r || !solve) return;
       const treeNodes = expandedTreeNodes(solve);
-      const path = solve.path || [];
       const total = staticTotal(solve);
       const s = Math.max(0, Math.min(step, total));
       staticStepRef.current = s;
       setStepState({ current: s, total, complete: s === total });
-      setSearchStep(Math.min(s, treeNodes.length + 1)); // final solution step has no CURRENT tree node
+      setCanReplayPath(s === total && (solve.path || []).length > 0);
+      setSearchStep(Math.min(s, treeNodes.length));
 
       // Rebuild from scratch so we can step back.
       r.reset();
 
-      if (s <= treeNodes.length) {
-        // Phase 1: Pac-man stands on the currently selected tree node.
-        const node = treeNodes[s - 1];
-        r.visited = [];
-        r.path = [];
-        if (node) {
-          r.setSearchNode(node);
-        }
-        r.draw();
-        setStatus(s === 0 ? "Start" : `Traversing node ${s}/${treeNodes.length}`);
-        setPhase(s === total ? "complete" : "paused");
-        return;
-      }
-
-      // Phase 2 (single step): go straight to the goal. Draw the full route from
-      // the start to the target and move Pac-man there at once.
+      const node = treeNodes[s - 1];
       r.visited = [];
-      r.path = path.slice();
-      for (let i = 1; i < path.length; i++) {
-        r._eatAt(path[i], false);
+      r.path = [];
+      if (node) {
+        r.setSearchNode(node);
       }
-      const goal = path.at(-1);
-      const dir = path.length > 1 ? r._dirOf(path.at(-2), goal) : "RIGHT";
-      r.setPacman(goal, dir);
-      r._mouthPhase += 0.9;
       r.draw();
-      setStatus("Solution path");
-      setPhase("complete");
+      setStatus(s === 0 ? "Start" : `Traversing node ${s}/${treeNodes.length}`);
+      setPhase(s === total ? "complete" : "paused");
     },
     [rendererRef]
   );
@@ -327,6 +307,8 @@ export function useRunner(rendererRef) {
         lastSolveKeyRef.current = null;
         staticStepRef.current = 0;
         setStepState(EMPTY_STEP_STATE);
+        setCanReplayPath(false);
+        setPathActions([]);
         setSearchStep(0);
         setTree([]);
         setTreeMeta(EMPTY_TREE_META);
@@ -349,12 +331,14 @@ export function useRunner(rendererRef) {
           if (!isCurrentOperation(operation.id)) return;
           lastSolveRef.current = result;
           lastSolveKeyRef.current = key;
+          setPathActions(result.actions || []);
           staticStepRef.current = 0;
           const total = staticTotal(result);
           setStepState({ current: 0, total, complete: !result.found });
           setSearchStep(0);
           setTree(result.tree || []);
           setTreeMeta({ truncated: !!result.tree_truncated, limit: result.tree_limit || 0 });
+          setCanReplayPath(false);
           r.reset();
           if (!result.found) {
             setStats(result.stats);
@@ -388,9 +372,40 @@ export function useRunner(rendererRef) {
         return;
       }
       renderStaticAt(next);
-      if (cfg.problem === "eat_all" && dir > 0 && next > expandedTreeNodes(solve).length) audio.eat();
     },
     [rendererRef, renderStaticAt, beginOperation, finishOperation, isCurrentOperation]
+  );
+
+  const replayPath = useCallback(
+    async (cfg) => {
+      if (runningRef.current || lastSolveKeyRef.current !== staticKey(cfg)) return;
+      const r = rendererRef.current;
+      const solve = lastSolveRef.current;
+      const path = solve?.path || [];
+      if (!r || !path.length) return;
+
+      wireRenderer();
+      const operation = beginOperation();
+      stopRef.current = false;
+      pausedRef.current = false;
+      runningRef.current = true;
+      setBusy(true);
+      setPhase("replaying");
+      setStatus("Replaying solution path");
+      r.reset();
+      effects.clear();
+      try {
+        await r.animatePath(path, stepDelay(cfg.speed), shouldStop, shouldPause);
+        if (!shouldStop() && isCurrentOperation(operation.id)) {
+          setStatus("Solution path complete");
+          setPhase("complete");
+          audio.win();
+        }
+      } finally {
+        finishOperation(operation.id);
+      }
+    },
+    [rendererRef, wireRenderer, beginOperation, finishOperation, isCurrentOperation, shouldStop, shouldPause, stepDelay]
   );
 
   const loadCompareRows = useCallback(async (cfg, operation) => {
@@ -525,12 +540,13 @@ export function useRunner(rendererRef) {
   };
 
   return {
-    status, phase, progress, compareProgress, stats, compareRows, compareTreeStep, tree, treeMeta, searchStep, busy, paused,
+    status, phase, progress, compareProgress, stats, compareRows, compareTreeStep, tree, treeMeta, searchStep, busy, paused, pathActions,
     canStepBack: stepState.current > 0,
     canStepNext: !stepState.complete,
+    canReplayPath,
     compareCanStepBack: compareStepState.current > 0,
     compareCanStepNext: !compareStepState.complete,
     isComplete: phase === "complete" || stepState.complete,
-    runStatic, pause, stepStatic, reset, runCompareTree, stepCompareTree, stopAnimation, setStatus,
+    runStatic, pause, stepStatic, replayPath, reset, runCompareTree, stepCompareTree, stopAnimation, setStatus,
   };
 }
